@@ -1,0 +1,13 @@
+import type { DockZone, LayoutNode, SplitNode, TabsNode, Direction } from './types';
+export declare const makeTabs: (tabId: string) => TabsNode;
+export declare const makeSplit: (direction: Direction, children: LayoutNode[], sizes?: number[]) => SplitNode;
+export declare const layoutContainsPanel: (node: LayoutNode | null, panelId: string) => boolean;
+export declare const removePanelFromLayout: (node: LayoutNode | null, panelId: string) => LayoutNode | null;
+export declare const addPanelToTabs: (node: LayoutNode | null, panelId: string) => LayoutNode;
+export declare const dockPanelAtRoot: (node: LayoutNode | null, panelId: string, zone: DockZone) => LayoutNode;
+export declare const replaceTab: (node: LayoutNode, targetTabId: string, newTabId: string) => LayoutNode;
+export declare const movePanelToTabs: (node: LayoutNode, sourceId: string, targetTabsId: string) => LayoutNode;
+export declare const findTabsNode: (node: LayoutNode | null, tabsId: string) => TabsNode | null;
+export declare const insertIntoTabs: (node: LayoutNode, targetTabsId: string, panelId: string) => LayoutNode;
+export declare const setActiveTab: (node: LayoutNode, tabsId: string, panelId: string) => LayoutNode;
+export declare const setSplitSizes: (node: LayoutNode, splitId: string, sizes: number[]) => LayoutNode;

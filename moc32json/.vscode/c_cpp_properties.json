@@ -1,0 +1,32 @@
+{
+  "env": {
+    "C_STANDARD": "c17",
+    "CPP_STANDARD": "c++20",
+    "CUBISM_NATIVE_FRAMEWORK": "${workspaceFolder}/external/CubismNativeFramework",
+  },
+  "configurations": [
+    {
+      "name": "Win32",
+      "includePath": [
+        "${CUBISM_NATIVE_FRAMEWORK}/Core/include"
+      ],
+      "cStandard": "${env.C_STANDARD}",
+      "cppStandard": "${env.CPP_STANDARD}"
+    },
+    {
+      "name": "Mac",
+      "includePath": [
+        "${CUBISM_NATIVE_FRAMEWORK}/Core/include"
+      ],
+      "macFrameworkPath": [
+        "/System/Library/Frameworks",
+        "/Library/Frameworks"
+      ],
+      "intelliSenseMode": "macos-clang-x64",
+      "compilerPath": "/usr/bin/clang",
+      "cStandard": "${env.C_STANDARD}",
+      "cppStandard": "${env.CPP_STANDARD}"
+    }
+  ],
+  "version": 4
+}

@@ -1,0 +1,39 @@
+import type { DockZone, LayoutNode, MenuGroup, PanelRegistration, PanelWindow, Theme } from './types';
+export type UIState = {
+    registry: Record<string, PanelRegistration>;
+    layout: LayoutNode | null;
+    windows: PanelWindow[];
+    draggingPanelId: string | null;
+    menuBar: MenuGroup[];
+    theme: Theme;
+    nextZ: number;
+};
+export declare const darkTheme: Theme;
+export declare const lightTheme: Theme;
+export declare const ui: {
+    subscribe: (this: void, run: import("svelte/store").Subscriber<UIState>, invalidate?: () => void) => import("svelte/store").Unsubscriber;
+    state: {
+        subscribe: (this: void, run: import("svelte/store").Subscriber<UIState>, invalidate?: () => void) => import("svelte/store").Unsubscriber;
+    };
+    registerPanel: (panel: PanelRegistration) => void;
+    openPanel: (panelId: string) => void;
+    closePanel: (panelId: string) => void;
+    toggleWindowMode: (panelId: string) => void;
+    moveWindow: (panelId: string, dx: number, dy: number) => void;
+    resizeWindow: (panelId: string, dx: number, dy: number, minWidth?: number, minHeight?: number) => void;
+    focusWindow: (panelId: string) => void;
+    dockPanel: (panelId: string, zone: DockZone) => void;
+    attachPanelToTabs: (panelId: string, tabsId: string) => void;
+    setDragging: (panelId: string | null) => void;
+    setActiveTabId: (tabsId: string, panelId: string) => void;
+    updateSplitSizes: (splitId: string, sizes: number[]) => void;
+    registerMenu: (menu: MenuGroup) => void;
+    setTheme: (name: "dark" | "light") => void;
+    reset: () => void;
+    darkTheme: Theme;
+    lightTheme: Theme;
+};
+export declare const windowedPanels: import("svelte/store").Readable<PanelWindow[]>;
+export declare const layoutTree: import("svelte/store").Readable<LayoutNode | null>;
+export declare const menuBar: import("svelte/store").Readable<MenuGroup[]>;
+export declare const activeTheme: import("svelte/store").Readable<Theme>;

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJ_ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+print_usage() {
+  echo "Linker: Creates symbolic links to submodules."
+  echo "Usage: $0 link|unlink|help"
+}
+
+link() {
+  ln -s ../../include/ $PROJ_ROOT_DIR/moc32json/external/commons
+}
+
+unlink() {
+  rm $PROJ_ROOT_DIR/moc32json/external/commons
+}
+
+if [[ -z $1 || $1 == "help" ]]; then
+  print_usage
+  exit 1
+elif [[ $1 == "link" ]]; then
+  echo "Creating symbolic links to submodules..."
+  link
+elif [[ $1 == "unlink" ]]; then
+  echo "Removing symbolic links to submodules..."
+  unlink
+else
+  print_usage
+  exit 1
+fi
