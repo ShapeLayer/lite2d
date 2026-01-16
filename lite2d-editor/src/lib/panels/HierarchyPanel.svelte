@@ -20,7 +20,7 @@
   <div class="header">Hierarchy</div>
   <ul>
     {#each nodes as node}
-      <li class:selected={selected === node.id} style={`--depth:${node.depth}`} on:click={() => (selected = node.id)}>
+      <li class:selected={selected === node.id} style={`--depth:${node.depth}`} onclick={() => (selected = node.id)}>
         <span class="bullet" aria-hidden="true" />
         <span>{node.label}</span>
       </li>

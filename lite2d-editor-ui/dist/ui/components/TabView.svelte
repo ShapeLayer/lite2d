@@ -3,17 +3,22 @@
   import type { TabsNode } from '../types';
   import { get } from 'svelte/store';
   import PanelChrome from './PanelChrome.svelte';
+  import type { DockZone } from '../types';
 
   type Props = { node: TabsNode };
 
   let { node } = $props();
   let registry = $state(get(ui).registry);
+  let draggingPanelId = $state<string | null>(get(ui).draggingPanelId);
+  let hoverZone = $state<DockZone | null>(null);
+  let container: HTMLDivElement | null = null;
   const panelEntry = $derived(registry[node.activeTabId]);
   const Active = $derived(panelEntry?.component);
 
   $effect(() => {
     const unsub = ui.subscribe((value) => {
       registry = value.registry;
+      draggingPanelId = value.draggingPanelId;
     });
     return () => unsub();
   });
@@ -22,17 +27,42 @@
   const onClose = (id: string) => ui.closePanel(id);
   const onToggleWindow = (id: string) => ui.toggleWindowMode(id);
   
-  const allowDrop = (event: DragEvent) => {
+  const resolveZone = (event: DragEvent): DockZone => {
+    if (!container) return 'center';
+    const rect = container.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const edge = Math.max(24, Math.min(80, Math.min(rect.width, rect.height) * 0.22));
+    if (x <= edge) return 'left';
+    if (x >= rect.width - edge) return 'right';
+    if (y <= edge) return 'top';
+    if (y >= rect.height - edge) return 'bottom';
+    return 'center';
+  };
+
+  const handleDragOver = (event: DragEvent) => {
     event.preventDefault();
+    hoverZone = resolveZone(event);
+  };
+
+  const handleDragLeave = (event: DragEvent) => {
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+      hoverZone = null;
+    }
   };
 
   const handleDrop = (event: DragEvent) => {
     event.preventDefault();
     const panelId = event.dataTransfer?.getData('panel-id');
-    if (panelId) {
-      ui.attachPanelToTabs(panelId, node.id);
-      ui.setDragging(null);
-    }
+    const zone = hoverZone ?? 'center';
+    hoverZone = null;
+    if (!panelId) return;
+    ui.dockPanelToTabs(panelId, node.id, zone);
+    ui.setDragging(null);
   };
 
   // 탭 드래그 시작 핸들러 분리
@@ -47,9 +77,22 @@
     console.log('setDragging called with:', tabId);
     console.log('ui state after:', get(ui).draggingPanelId);
   };
+
+  $effect(() => {
+    if (!draggingPanelId) {
+      hoverZone = null;
+    }
+  });
 </script>
 
-<div class="tabs" role="presentation" ondragover={allowDrop} ondrop={handleDrop}>
+<div
+  class={`tabs ${draggingPanelId ? 'drag-active' : ''}`}
+  role="presentation"
+  bind:this={container}
+  ondragover={handleDragOver}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
+>
   <div class="tab-bar">
     {#each node.tabs as tab (tab)}
       <button
@@ -76,8 +119,8 @@
       <PanelChrome
         title={registry[node.activeTabId].title}
         panelId={node.activeTabId}
-        on:close={() => onClose(node.activeTabId)}
-        on:toggle={() => onToggleWindow(node.activeTabId)}
+        onclose={() => onClose(node.activeTabId)}
+        ontoggle={() => onToggleWindow(node.activeTabId)}
       />  
       <div class="content">
         {#if Active}
@@ -88,6 +131,14 @@
   {:else}
     <div class="empty">No panel selected</div>
   {/if}
+
+  <div class="dock-hints" class:active={!!draggingPanelId}>
+    <div class={`dock-zone left ${hoverZone === 'left' ? 'hot' : ''}`}></div>
+    <div class={`dock-zone right ${hoverZone === 'right' ? 'hot' : ''}`}></div>
+    <div class={`dock-zone top ${hoverZone === 'top' ? 'hot' : ''}`}></div>
+    <div class={`dock-zone bottom ${hoverZone === 'bottom' ? 'hot' : ''}`}></div>
+    <div class={`dock-zone center ${hoverZone === 'center' ? 'hot' : ''}`}></div>
+  </div>
 </div>
 
 <style>
@@ -101,6 +152,83 @@
     border-radius: calc(var(--ui-radius) * 0.75);
     overflow: hidden;
     position: relative;
+  }
+
+  .tabs.drag-active {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-primary) 85%, transparent);
+    border-color: color-mix(in srgb, var(--ui-primary) 85%, var(--ui-border));
+    outline: 2px solid color-mix(in srgb, var(--ui-primary) 60%, transparent);
+    outline-offset: -2px;
+  }
+
+  .dock-hints {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .dock-hints.active {
+    opacity: 1;
+  }
+
+  .dock-zone {
+    position: absolute;
+    border-radius: calc(var(--ui-radius) * 0.8);
+    opacity: 0.55;
+    transition: opacity 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  }
+
+  .dock-zone.hot {
+    opacity: 1;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ui-primary) 90%, transparent);
+    background: color-mix(in srgb, var(--ui-primary) 18%, transparent);
+  }
+
+  .dock-zone.left {
+    top: 8px;
+    bottom: 8px;
+    left: 8px;
+    width: 16px;
+    background: linear-gradient(to right, color-mix(in srgb, var(--ui-primary) 60%, transparent), transparent 80%);
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--ui-primary) 75%, transparent);
+  }
+
+  .dock-zone.right {
+    top: 8px;
+    bottom: 8px;
+    right: 8px;
+    width: 16px;
+    background: linear-gradient(to left, color-mix(in srgb, var(--ui-primary) 60%, transparent), transparent 80%);
+    box-shadow: inset -2px 0 0 color-mix(in srgb, var(--ui-primary) 75%, transparent);
+  }
+
+  .dock-zone.top {
+    left: 8px;
+    right: 8px;
+    top: 8px;
+    height: 16px;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--ui-primary) 60%, transparent), transparent 80%);
+    box-shadow: inset 0 2px 0 color-mix(in srgb, var(--ui-primary) 75%, transparent);
+  }
+
+  .dock-zone.bottom {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    height: 16px;
+    background: linear-gradient(to top, color-mix(in srgb, var(--ui-primary) 60%, transparent), transparent 80%);
+    box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ui-primary) 75%, transparent);
+  }
+
+  .dock-zone.center {
+    left: 22%;
+    right: 22%;
+    top: 22%;
+    bottom: 22%;
+    background: transparent;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ui-primary) 55%, transparent);
   }
 
   .tab-bar {

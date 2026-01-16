@@ -2,6 +2,7 @@ import { derived, writable } from 'svelte/store';
 import {
   addPanelToTabs,
   dockPanelAtRoot,
+  dockPanelAtTabs,
   layoutContainsPanel,
   makeTabs,
   movePanelToTabs,
@@ -189,6 +190,19 @@ const createUI = () => {
     });
   };
 
+  const dockPanelToTabs = (panelId: string, tabsId: string, zone: DockZone) => {
+    update((state) => {
+      state.windows = state.windows.filter((w) => w.panelId !== panelId);
+      const cleanedLayout = removePanelFromLayout(state.layout, panelId);
+      if (!cleanedLayout) {
+        state.layout = dockPanelAtRoot(cleanedLayout, panelId, zone);
+        return { ...state };
+      }
+      state.layout = dockPanelAtTabs(cleanedLayout, panelId, tabsId, zone);
+      return { ...state };
+    });
+  };
+
   const attachPanelToTabs = (panelId: string, tabsId: string) => {
     update((state) => {
       state.windows = state.windows.filter((w) => w.panelId !== panelId);
@@ -253,6 +267,7 @@ const createUI = () => {
     resizeWindow,
     focusWindow,
     dockPanel,
+    dockPanelToTabs,
     attachPanelToTabs,
     setDragging,
     setActiveTabId,

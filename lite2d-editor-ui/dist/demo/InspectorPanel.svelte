@@ -17,6 +17,5 @@
 <style>
   .panel {
     display: grid;
-    gap: 10px;
   }
 </style>

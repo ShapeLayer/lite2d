@@ -1,38 +1,34 @@
-
 <script lang="ts">
-  // createEventDispatcher is still the supported API for component events;
-  // lints may warn in runes mode, so we keep it and silence the false-positive.
-  // eslint-disable-next-line svelte/deprecations
-  import { createEventDispatcher } from 'svelte';
+  import { get } from 'svelte/store';
   import { ui } from '../store';
-
-  type $$Events = {
-    close: CustomEvent<void>;
-    toggle: CustomEvent<void>;
-    menu: CustomEvent<void>;
-    dragstart: CustomEvent<{ event: DragEvent; panelId: string }>;
-    pointerdown: CustomEvent<PointerEvent>;
-  };
+  import { InspectionPanel, PictureInPicture2, X } from '@lucide/svelte';
 
   type Props = {
     title: string;
     panelId: string;
     isWindow?: boolean;
     showMenu?: boolean;
+    onclose?: () => void;
+    ontoggle?: () => void;
+    onmenu?: () => void;
+    ondragstart?: (payload: { event: DragEvent; panelId: string }) => void;
+    onpointerdown?: (event: PointerEvent) => void;
   };
+  let {
+    title,
+    panelId,
+    isWindow = false,
+    showMenu = false,
+    onclose,
+    ontoggle,
+    onmenu,
+    ondragstart,
+    onpointerdown
+  } = $$props;
 
-  const dispatch = createEventDispatcher<{
-    close: void;
-    toggle: void;
-    menu: void;
-    dragstart: { event: DragEvent; panelId: string };
-    pointerdown: PointerEvent;
-  }>();
-  let { title, panelId, isWindow = false, showMenu = false } = $props();
-
-  const onClose = () => dispatch('close');
-  const onToggleMode = () => dispatch('toggle');
-  const onMenu = () => dispatch('menu');
+  const onClose = () => onclose?.();
+  const onToggleMode = () => ontoggle?.();
+  const onMenu = () => onmenu?.();
 </script>
 
 <header
@@ -41,11 +37,15 @@
   draggable="true"
   onpointerdown={(event) => {
     event.stopPropagation();
-    dispatch('pointerdown', event);
+    onpointerdown?.(event);
   }}
   ondragstart={(event) => {
-    dispatch('dragstart', { event, panelId });
-    event.dataTransfer?.setData('panel-id', panelId);
+    ondragstart?.({ event, panelId });
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('panel-id', panelId);
+      event.dataTransfer.setData('text/plain', panelId);
+    }
     ui.setDragging(panelId);
   }}
   ondragend={(event) => {
@@ -80,7 +80,11 @@
         onToggleMode();
       }}
     >
-      {isWindow ? '[ ]' : 'POP'}
+      {#if isWindow}
+        <PictureInPicture2 />
+      {:else}
+        <InspectionPanel />
+      {/if}
     </button>
     <button
       class="icon danger"
@@ -90,7 +94,7 @@
         onClose();
       }}
     >
-      x
+      <X />
     </button>
   </div>
 </header>

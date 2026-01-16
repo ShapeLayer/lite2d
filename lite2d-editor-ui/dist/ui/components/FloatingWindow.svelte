@@ -88,10 +88,10 @@
       title={panelEntry.title}
       panelId={panelId}
       isWindow={true}
-      on:close={onClose}
-      on:toggle={onToggleMode}
-      on:pointerdown={(event) => startMove(event.detail)}
-      on:dragstart={() => { /* dragstart sets dataTransfer in PanelChrome; no move needed here */ }}
+      onclose={onClose}
+      ontoggle={onToggleMode}
+      onpointerdown={(event) => startMove(event)}
+      ondragstart={() => { /* dragstart sets dataTransfer in PanelChrome; no move needed here */ }}
     />
     <div class="content">
       {#if Active}

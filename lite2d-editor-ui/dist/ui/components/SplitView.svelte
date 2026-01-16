@@ -2,10 +2,19 @@
   import { ui } from '../store';
   import type { SplitNode } from '../types';
   import PanelNode from './PanelNode.svelte';
+  import { get } from 'svelte/store';
 
   type Props = { node: SplitNode };
   let { node } = $props();
   let container: HTMLDivElement | null = null;
+  let draggingPanelId = $state<string | null>(get(ui).draggingPanelId);
+
+  $effect(() => {
+    const unsub = ui.subscribe((value) => {
+      draggingPanelId = value.draggingPanelId;
+    });
+    return () => unsub();
+  });
 
   const startResize = (index: number, event: PointerEvent) => {
     if (!container) return;
@@ -45,7 +54,7 @@
     </div>
     {#if index < node.children.length - 1}
       <div
-        class={`divider ${node.direction}`}
+        class={`divider ${node.direction} ${draggingPanelId ? 'drag-active' : ''}`}
         onpointerdown={(event) => startResize(index, event)}
       ></div>
     {/if}
@@ -106,5 +115,10 @@
 
   .divider:hover {
     background: var(--ui-primary);
+  }
+
+  .divider.drag-active {
+    background: color-mix(in srgb, var(--ui-primary) 80%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ui-primary) 90%, transparent);
   }
 </style>

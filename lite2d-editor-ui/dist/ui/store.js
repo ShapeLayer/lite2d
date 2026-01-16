@@ -1,5 +1,5 @@
 import { derived, writable } from 'svelte/store';
-import { addPanelToTabs, dockPanelAtRoot, layoutContainsPanel, makeTabs, movePanelToTabs, removePanelFromLayout, setActiveTab, setSplitSizes } from './layout';
+import { addPanelToTabs, dockPanelAtRoot, dockPanelAtTabs, layoutContainsPanel, makeTabs, movePanelToTabs, removePanelFromLayout, setActiveTab, setSplitSizes } from './layout';
 export const darkTheme = {
     name: 'dark',
     colors: {
@@ -151,6 +151,18 @@ const createUI = () => {
             return { ...state };
         });
     };
+    const dockPanelToTabs = (panelId, tabsId, zone) => {
+        update((state) => {
+            state.windows = state.windows.filter((w) => w.panelId !== panelId);
+            const cleanedLayout = removePanelFromLayout(state.layout, panelId);
+            if (!cleanedLayout) {
+                state.layout = dockPanelAtRoot(cleanedLayout, panelId, zone);
+                return { ...state };
+            }
+            state.layout = dockPanelAtTabs(cleanedLayout, panelId, tabsId, zone);
+            return { ...state };
+        });
+    };
     const attachPanelToTabs = (panelId, tabsId) => {
         update((state) => {
             state.windows = state.windows.filter((w) => w.panelId !== panelId);
@@ -210,6 +222,7 @@ const createUI = () => {
         resizeWindow,
         focusWindow,
         dockPanel,
+        dockPanelToTabs,
         attachPanelToTabs,
         setDragging,
         setActiveTabId,

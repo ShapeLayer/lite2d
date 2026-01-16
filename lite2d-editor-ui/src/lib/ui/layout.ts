@@ -96,6 +96,34 @@ export const dockPanelAtRoot = (
   return makeSplit(direction, [first!, second!], sizes);
 };
 
+const replaceTabsNode = (node: LayoutNode, tabsId: string, replacement: LayoutNode): LayoutNode => {
+  if (node.kind === 'tabs') {
+    return node.id === tabsId ? replacement : node;
+  }
+  return { ...node, children: node.children.map((child) => replaceTabsNode(child, tabsId, replacement)) };
+};
+
+export const dockPanelAtTabs = (
+  node: LayoutNode,
+  panelId: string,
+  targetTabsId: string,
+  zone: DockZone
+): LayoutNode => {
+  if (zone === 'center') {
+    return insertIntoTabs(node, targetTabsId, panelId);
+  }
+
+  const target = findTabsNode(node, targetTabsId);
+  if (!target) return dockPanelAtRoot(node, panelId, zone);
+
+  const newTabs = makeTabs(panelId);
+  const direction: Direction = zone === 'left' || zone === 'right' ? 'horizontal' : 'vertical';
+  const isBefore = zone === 'left' || zone === 'top';
+  const sizes = isBefore ? [0.35, 0.65] : [0.65, 0.35];
+  const split = makeSplit(direction, isBefore ? [newTabs, target] : [target, newTabs], sizes);
+  return replaceTabsNode(node, targetTabsId, split);
+};
+
 export const replaceTab = (node: LayoutNode, targetTabId: string, newTabId: string): LayoutNode => {
   if (node.kind === 'tabs') {
     if (!node.tabs.includes(targetTabId)) return node;

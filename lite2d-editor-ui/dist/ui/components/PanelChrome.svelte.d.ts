@@ -12,19 +12,9 @@ interface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> =
     z_$$bindings?: Bindings;
 }
 declare const PanelChrome: $$__sveltets_2_IsomorphicComponent<{
-    title: any;
-    panelId: any;
-    isWindow?: boolean;
-    showMenu?: boolean;
+    [x: string]: any;
 }, {
-    close: CustomEvent<void>;
-    toggle: CustomEvent<void>;
-    menu: CustomEvent<void>;
-    dragstart: CustomEvent<{
-        event: DragEvent;
-        panelId: string;
-    }>;
-    pointerdown: CustomEvent<PointerEvent>;
-}, {}, {}, "">;
+    [evt: string]: CustomEvent<any>;
+}, {}, {}, string>;
 type PanelChrome = InstanceType<typeof PanelChrome>;
 export default PanelChrome;

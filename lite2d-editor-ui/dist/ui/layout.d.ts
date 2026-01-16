@@ -5,6 +5,7 @@ export declare const layoutContainsPanel: (node: LayoutNode | null, panelId: str
 export declare const removePanelFromLayout: (node: LayoutNode | null, panelId: string) => LayoutNode | null;
 export declare const addPanelToTabs: (node: LayoutNode | null, panelId: string) => LayoutNode;
 export declare const dockPanelAtRoot: (node: LayoutNode | null, panelId: string, zone: DockZone) => LayoutNode;
+export declare const dockPanelAtTabs: (node: LayoutNode, panelId: string, targetTabsId: string, zone: DockZone) => LayoutNode;
 export declare const replaceTab: (node: LayoutNode, targetTabId: string, newTabId: string) => LayoutNode;
 export declare const movePanelToTabs: (node: LayoutNode, sourceId: string, targetTabsId: string) => LayoutNode;
 export declare const findTabsNode: (node: LayoutNode | null, tabsId: string) => TabsNode | null;

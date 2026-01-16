@@ -21,6 +21,7 @@ export type Moc3Model = {
   name: string;
   canvas: Moc3Canvas;
   drawables: Moc3Drawable[];
+  texture?: string;
 };
 
 const asTupleArray = (value: unknown): [number, number][] => {
@@ -44,6 +45,12 @@ const extractNumberArray = (value: unknown): number[] => {
 
 export const parseMoc3 = (json: unknown, name: string): Moc3Model => {
   const data = (json ?? {}) as Record<string, unknown>;
+  const texture =
+    typeof data.texture === 'string'
+      ? data.texture
+      : Array.isArray(data.textures) && typeof data.textures[0] === 'string'
+        ? data.textures[0]
+        : undefined;
 
   const canvasRaw = (data.canvas as Record<string, unknown>) ?? {};
   const canvas: Moc3Canvas = {
@@ -78,7 +85,8 @@ export const parseMoc3 = (json: unknown, name: string): Moc3Model => {
   return {
     name,
     canvas,
-    drawables
+    drawables,
+    texture
   };
 };
 

@@ -11,7 +11,7 @@
 
 <div class="scene-panel">
   <div class="toolbar">
-    <Button variant={playing ? 'primary' : 'ghost'} label={playing ? 'Pause' : 'Play'} on:click={togglePlay} />
+    <Button variant={playing ? 'primary' : 'ghost'} label={playing ? 'Pause' : 'Play'} onclick={togglePlay} />
     <Button variant="ghost" label="Frame Debug" />
     <Checkbox label="Grid" bind:checked={showGrid} />
   </div>

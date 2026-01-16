@@ -23,6 +23,7 @@ export declare const ui: {
     resizeWindow: (panelId: string, dx: number, dy: number, minWidth?: number, minHeight?: number) => void;
     focusWindow: (panelId: string) => void;
     dockPanel: (panelId: string, zone: DockZone) => void;
+    dockPanelToTabs: (panelId: string, tabsId: string, zone: DockZone) => void;
     attachPanelToTabs: (panelId: string, tabsId: string) => void;
     setDragging: (panelId: string | null) => void;
     setActiveTabId: (tabsId: string, panelId: string) => void;

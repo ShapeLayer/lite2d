@@ -8,7 +8,11 @@
     label?: string;
   };
 
-  const dispatch = createEventDispatcher();
+  export interface $$Events {
+    click: MouseEvent;
+  }
+
+  const dispatch = createEventDispatcher<$$Events>();
   let { variant = 'primary', disabled = false, block = false, label = '' } = $props();
 
   const handleClick = (event: MouseEvent) => {
@@ -17,7 +21,7 @@
   };
 </script>
 
-<button class={`btn ${variant} ${block ? 'block' : ''}`} disabled={disabled} on:click={handleClick}>
+<button class={`btn ${variant} ${block ? 'block' : ''}`} disabled={disabled} onclick={handleClick}>
   {label}
 </button>
 
