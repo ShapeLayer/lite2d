@@ -81,9 +81,9 @@
       }}
     >
       {#if isWindow}
-        <PictureInPicture2 />
+        <InspectionPanel size={16} strokeWidth={1.5} />
       {:else}
-        <InspectionPanel />
+        <PictureInPicture2 size={16} strokeWidth={1.5} />
       {/if}
     </button>
     <button
@@ -94,7 +94,7 @@
         onClose();
       }}
     >
-      <X />
+      <X size={16} strokeWidth={1.5} />
     </button>
   </div>
 </header>
@@ -135,12 +135,18 @@
     gap: 6px;
   }
 
+  button.icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .icon {
     background: var(--ui-muted);
     border: var(--ui-border-width) solid var(--ui-border);
     color: var(--ui-text);
     border-radius: var(--ui-radius);
-    padding: 4px 8px;
+    padding: 4px 4px;
     font-size: 12px;
     cursor: pointer;
     transition: background 120ms ease, border-color 120ms ease;

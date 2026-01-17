@@ -29,6 +29,7 @@
 
 <style>
   .panel {
+    height: 100%;
     overflow: auto;
   }
 </style>

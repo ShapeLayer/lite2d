@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <glm/glm.hpp>
 
@@ -47,6 +48,8 @@ struct Model
   std::unordered_map<std::string, Expression> expressions;
   std::unordered_map<std::string, Deformer> deformers;
   std::unordered_map<std::string, ArtMesh> meshes;
+  // Face part mapping: mesh id -> set of face part tags
+  std::unordered_map<std::string, std::unordered_set<std::string>> mesh_face_parts;
   std::vector<AnimationClip> animations;
   void resetParams()
   {

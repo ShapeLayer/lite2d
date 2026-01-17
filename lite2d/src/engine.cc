@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <cctype>
+#include <initializer_list>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "debug.h"
@@ -309,6 +310,32 @@ static void applyScaleY(std::vector<glm::vec2> &verts, float scale)
   }
 }
 
+static void applyScaleX(std::vector<glm::vec2> &verts, float scale)
+{
+  if (verts.empty())
+    return;
+  glm::vec2 minV = verts.front();
+  glm::vec2 maxV = verts.front();
+  for (const auto &v : verts)
+  {
+    minV.x = std::min(minV.x, v.x);
+    minV.y = std::min(minV.y, v.y);
+    maxV.x = std::max(maxV.x, v.x);
+    maxV.y = std::max(maxV.y, v.y);
+  }
+  float centerX = (minV.x + maxV.x) * 0.5f;
+  for (auto &v : verts)
+  {
+    v.x = centerX + (v.x - centerX) * scale;
+  }
+}
+
+static void applyTranslateY(std::vector<glm::vec2> &verts, float offset)
+{
+  for (auto &v : verts)
+    v.y += offset;
+}
+
 void Engine::update(float timeSec, float dt)
 {
   model.resetParams();
@@ -318,47 +345,125 @@ void Engine::update(float timeSec, float dt)
   // applyExpressions({{"blink", 0.0f}});
 
   const float blinkOpen = computeBlinkOpen(timeSec);
-  const float mouthOpen = 0.2f + 0.3f * (0.5f + 0.5f * std::sin(timeSec * 1.7f));
+  const float mouthOpenAnim = 0.2f + 0.3f * (0.5f + 0.5f * std::sin(timeSec * 1.7f));
 
   if (auto itEye = model.params.find("ParamEyeLOpen"); itEye != model.params.end())
     itEye->second.set(blinkOpen);
-  if (auto itMouth = model.params.find("ParamMouthOpen"); itMouth != model.params.end())
-    itMouth->second.set(mouthOpen);
+  if (auto itEye = model.params.find("ParamEyeROpen"); itEye != model.params.end())
+    itEye->second.set(blinkOpen);
 
-  if (auto itMouth = model.params.find("ParamMouthOpen"); itMouth != model.params.end())
+  if (auto itMouthY = model.params.find("ParamMouthOpenY"); itMouthY != model.params.end())
+    itMouthY->second.set(mouthOpenAnim);
+  else if (auto itMouth = model.params.find("ParamMouthOpen"); itMouth != model.params.end())
+    itMouth->second.set(mouthOpenAnim);
+
+  float mouthOpen = mouthOpenAnim;
+  if (auto itMouthY = model.params.find("ParamMouthOpenY"); itMouthY != model.params.end())
+  {
+    Spring &sp = springs["ParamMouthOpenY"];
+    mouthOpen = sp.update(itMouthY->second.cur_v, dt);
+    itMouthY->second.set(mouthOpen);
+  }
+  else if (auto itMouth = model.params.find("ParamMouthOpen"); itMouth != model.params.end())
   {
     Spring &sp = springs["ParamMouthOpen"];
-    float smoothed = sp.update(itMouth->second.cur_v, dt);
-    itMouth->second.set(smoothed);
+    mouthOpen = sp.update(itMouth->second.cur_v, dt);
+    itMouth->second.set(mouthOpen);
   }
 
   if (auto itRoot = model.deformers.find("def_root"); itRoot != model.deformers.end())
   {
-    float swayX = std::sin(timeSec * 0.6f) * (canvas.x * 0.02f);
-    float swayY = std::sin(timeSec * 0.8f) * (canvas.y * 0.015f);
-    float swayRot = std::sin(timeSec * 0.7f) * 3.0f;
-    itRoot->second.pos = {swayX, swayY};
-    itRoot->second.rot_deg = swayRot;
+    itRoot->second.pos = {0.0f, 0.0f};
+    itRoot->second.rot_deg = 0.0f;
   }
 
   computeDeformers();
 
+  const bool hasFaceParts = !model.mesh_face_parts.empty();
+  const float eyeLOpen = model.params.count("ParamEyeLOpen") ? model.params["ParamEyeLOpen"].cur_v : blinkOpen;
+  const float eyeROpen = model.params.count("ParamEyeROpen") ? model.params["ParamEyeROpen"].cur_v : blinkOpen;
+  const float eyeOpenAvg = 0.5f * (eyeLOpen + eyeROpen);
+  const float mouthForm = model.params.count("ParamMouthForm") ? model.params["ParamMouthForm"].cur_v : 0.0f;
+  const float browL = model.params.count("ParamBrowLY") ? model.params["ParamBrowLY"].cur_v : 0.0f;
+  const float browR = model.params.count("ParamBrowRY") ? model.params["ParamBrowRY"].cur_v : 0.0f;
+
+  auto meshHasPart = [&](const std::string &meshId, const std::initializer_list<const char *> &parts)
+  {
+    auto it = model.mesh_face_parts.find(meshId);
+    if (it == model.mesh_face_parts.end())
+      return false;
+    for (const auto *part : parts)
+      if (it->second.count(part))
+        return true;
+    return false;
+  };
+
   for (auto &kv : model.meshes)
   {
     auto deformed = deformMesh(kv.second);
-    const std::string lowerId = toLowerCopy(kv.first);
-    const bool isEye = containsToken(lowerId, "eye") && !containsToken(lowerId, "brow");
-    const bool isMouth = containsToken(lowerId, "mouth") || containsToken(lowerId, "lip");
-    if (isEye)
+
+    bool isLeftEye = false;
+    bool isRightEye = false;
+    bool isEyeGeneric = false;
+    bool isMouth = false;
+    bool isBrowL = false;
+    bool isBrowR = false;
+
+    if (hasFaceParts)
     {
-      float eyeScale = glm::mix(0.1f, 1.0f, blinkOpen);
+      isLeftEye = meshHasPart(kv.first, {"eye_left", "eyelid_left", "eye_white_left", "eye_ball_left"});
+      isRightEye = meshHasPart(kv.first, {"eye_right", "eyelid_right", "eye_white_right", "eye_ball_right"});
+      isEyeGeneric = meshHasPart(kv.first, {"eye"});
+      isMouth = meshHasPart(kv.first, {"mouth", "lip_upper", "lip_lower", "tongue", "teeth"});
+      isBrowL = meshHasPart(kv.first, {"brow_left"});
+      isBrowR = meshHasPart(kv.first, {"brow_right"});
+    }
+    else
+    {
+      const std::string lowerId = toLowerCopy(kv.first);
+      const bool isEye = containsToken(lowerId, "eye") && !containsToken(lowerId, "brow");
+      isEyeGeneric = isEye;
+      isMouth = containsToken(lowerId, "mouth") || containsToken(lowerId, "lip");
+    }
+
+    if (isLeftEye || isRightEye || isEyeGeneric)
+    {
+      float open = eyeOpenAvg;
+      if (isLeftEye)
+        open = eyeLOpen;
+      else if (isRightEye)
+        open = eyeROpen;
+      float eyeScale = glm::mix(0.05f, 1.0f, open);
       applyScaleY(deformed, eyeScale);
     }
+
     if (isMouth)
     {
-      float mouthScale = glm::mix(0.7f, 1.3f, mouthOpen);
-      applyScaleY(deformed, mouthScale);
+      float mouthScaleY = glm::mix(0.7f, 1.3f, mouthOpen);
+      applyScaleY(deformed, mouthScaleY);
+      float mouthScaleX = 1.0f + mouthForm * 0.2f;
+      applyScaleX(deformed, mouthScaleX);
     }
+
+    if (isBrowL || isBrowR)
+    {
+      float brow = isBrowL ? browL : browR;
+      if (!deformed.empty())
+      {
+        glm::vec2 minV = deformed.front();
+        glm::vec2 maxV = deformed.front();
+        for (const auto &v : deformed)
+        {
+          minV.x = std::min(minV.x, v.x);
+          minV.y = std::min(minV.y, v.y);
+          maxV.x = std::max(maxV.x, v.x);
+          maxV.y = std::max(maxV.y, v.y);
+        }
+        float height = std::max(1e-4f, maxV.y - minV.y);
+        applyTranslateY(deformed, brow * height * 0.08f);
+      }
+    }
+
     glmeshes[kv.first].updatePositions(deformed);
   }
 #if defined(LITE2D_DEBUG) && LITE2D_DEBUG

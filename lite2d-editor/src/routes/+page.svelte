@@ -4,6 +4,7 @@
   import type { MenuItem, PanelRegistration } from 'lite2d-editor-ui';
 
   import Moc3DrawablesPanel from '$lib/panels/Moc3DrawablesPanel.svelte';
+  import Moc3FacePartValidatorPanel from '$lib/panels/Moc3FacePartValidatorPanel.svelte';
   import Moc3FilePanel from '$lib/panels/Moc3FilePanel.svelte';
   import Moc3RenderPreviewPanel from '$lib/panels/Moc3RenderPreviewPanel.svelte';
   import Moc3UvPreviewPanel from '$lib/panels/Moc3UvPreviewPanel.svelte';
@@ -14,6 +15,7 @@
   let fileInput: HTMLInputElement | null = null;
   let textureInput: HTMLInputElement | null = null;
   let renderSettingsInput: HTMLInputElement | null = null;
+  let facePartsInput: HTMLInputElement | null = null;
 
   const sampleUrl = new URL('../live2d-assets/mao_pro/mao_pro.moc3.json', import.meta.url).href;
   const sampleTextureUrl = new URL('../live2d-assets/mao_pro/kei_basic_free.2048/texture_00.png', import.meta.url).href;
@@ -21,6 +23,7 @@
   const panels: PanelRegistration[] = [
     { id: 'moc3-file', title: 'MOC3 File', component: Moc3FilePanel, minWidth: 360, minHeight: 240 },
     { id: 'moc3-drawables', title: 'Drawables', component: Moc3DrawablesPanel, minWidth: 360, minHeight: 320 },
+    { id: 'moc3-face-parts', title: 'Face Parts', component: Moc3FacePartValidatorPanel, minWidth: 420, minHeight: 320 },
     { id: 'moc3-render', title: 'Render Preview', component: Moc3RenderPreviewPanel, minWidth: 360, minHeight: 320 },
     { id: 'moc3-uv', title: 'UV Preview', component: Moc3UvPreviewPanel, minWidth: 420, minHeight: 360 }
   ];
@@ -45,7 +48,9 @@
         { id: 'open-texture', label: 'Open texture image', onSelect: () => textureInput?.click() },
         { id: 'use-model-texture', label: 'Use model texture', onSelect: () => moc3Actions.tryLoadModelTexture() },
         { id: 'save-render-settings', label: 'Save render settings', onSelect: () => moc3Actions.exportRenderSettings() },
-        { id: 'load-render-settings', label: 'Load render settings', onSelect: () => renderSettingsInput?.click() }
+        { id: 'load-render-settings', label: 'Load render settings', onSelect: () => renderSettingsInput?.click() },
+        { id: 'save-face-parts', label: 'Save face parts', onSelect: () => moc3Actions.exportFaceParts() },
+        { id: 'load-face-parts', label: 'Load face parts', onSelect: () => facePartsInput?.click() }
       ]
     });
     ui.registerMenu({
@@ -62,6 +67,7 @@
 
     ui.dockPanel('moc3-render', 'center');
     ui.dockPanel('moc3-drawables', 'left');
+    ui.dockPanel('moc3-face-parts', 'left');
     ui.dockPanel('moc3-uv', 'right');
     ui.dockPanel('moc3-file', 'top');
   };
@@ -102,6 +108,14 @@
     input.value = '';
   };
 
+  const handleFacePartsFile = async (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    await moc3Actions.importFacePartsFromFile(file);
+    input.value = '';
+  };
+
   const loadSample = async () => {
     try {
       const response = await fetch(sampleUrl);
@@ -123,6 +137,7 @@
   <input class="hidden" type="file" multiple accept=".json,.moc3.json" bind:this={fileInput} onchange={handleFileChange} />
   <input class="hidden" type="file" accept="image/*" bind:this={textureInput} onchange={handleTextureFile} />
   <input class="hidden" type="file" accept="application/json,.json" bind:this={renderSettingsInput} onchange={handleRenderSettingsFile} />
+  <input class="hidden" type="file" accept="application/json,.json" bind:this={facePartsInput} onchange={handleFacePartsFile} />
   <section class="surface-wrapper">
     <PanelSurface />
   </section>

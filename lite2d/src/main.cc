@@ -79,10 +79,24 @@ static std::filesystem::path getRenderSettingsPath(const std::filesystem::path &
   return std::filesystem::path(pathStr + ".moc3.render-settings.json");
 }
 
+static std::filesystem::path getFacePartsPath(const std::filesystem::path &moc3JsonPath)
+{
+  const std::string suffix = ".moc3.json";
+  const std::string pathStr = moc3JsonPath.string();
+  if (endsWith(pathStr, suffix))
+    return std::filesystem::path(pathStr.substr(0, pathStr.size() - suffix.size()) + ".moc3.face-parts.json");
+  return std::filesystem::path(pathStr + ".moc3.face-parts.json");
+}
+
 struct RenderSettings
 {
   std::vector<std::string> order;
   std::unordered_set<std::string> hidden;
+};
+
+struct FacePartsSettings
+{
+  std::unordered_map<std::string, std::vector<std::string>> parts;
 };
 
 static RenderSettings loadRenderSettings(const std::filesystem::path &moc3JsonPath,
@@ -118,6 +132,44 @@ static RenderSettings loadRenderSettings(const std::filesystem::path &moc3JsonPa
   catch (const std::exception &e)
   {
     std::cerr << "Failed to parse render settings: " << e.what() << "\n";
+  }
+  return settings;
+}
+
+static FacePartsSettings loadFacePartsSettings(const std::filesystem::path &moc3JsonPath,
+                                               const std::filesystem::path &explicitPath = {})
+{
+  FacePartsSettings settings;
+  const auto settingsPath = explicitPath.empty() ? getFacePartsPath(moc3JsonPath)
+                                                 : explicitPath;
+  std::ifstream ifs(settingsPath);
+  if (!ifs)
+    return settings;
+  try
+  {
+    nlohmann::json j;
+    ifs >> j;
+    if (j.contains("face_parts") && j["face_parts"].is_object())
+    {
+      const auto &partsObj = j["face_parts"];
+      for (auto it = partsObj.begin(); it != partsObj.end(); ++it)
+      {
+        if (!it.value().is_array())
+          continue;
+        std::vector<std::string> ids;
+        for (const auto &id : it.value())
+        {
+          if (id.is_string())
+            ids.push_back(id.get<std::string>());
+        }
+        if (!ids.empty())
+          settings.parts[it.key()] = std::move(ids);
+      }
+    }
+  }
+  catch (const std::exception &e)
+  {
+    std::cerr << "Failed to parse face parts settings: " << e.what() << "\n";
   }
   return settings;
 }
@@ -198,7 +250,8 @@ static bool loadAtlasTextureFromJson(Engine &eng,
 
 static bool loadModelFromMoc3Json(const std::filesystem::path &jsonPath, Engine &eng,
                                   std::unordered_map<std::string, std::filesystem::path> &drawableTextures,
-                                  const std::filesystem::path &renderSettingsPath = {})
+                                  const std::filesystem::path &renderSettingsPath = {},
+                                  const std::filesystem::path &facePartsPath = {})
 {
   std::ifstream ifs(jsonPath);
   if (!ifs)
@@ -226,6 +279,7 @@ static bool loadModelFromMoc3Json(const std::filesystem::path &jsonPath, Engine 
 
   drawableTextures.clear();
   const RenderSettings renderSettings = loadRenderSettings(jsonPath, renderSettingsPath);
+  const FacePartsSettings facePartsSettings = loadFacePartsSettings(jsonPath, facePartsPath);
   std::unordered_map<std::string, int> orderIndex;
   orderIndex.reserve(renderSettings.order.size());
   for (size_t i = 0; i < renderSettings.order.size(); ++i)
@@ -296,6 +350,7 @@ static bool loadModelFromMoc3Json(const std::filesystem::path &jsonPath, Engine 
 
   eng.model.meshes.clear();
   eng.model.deformers.clear();
+  eng.model.mesh_face_parts.clear();
 
   Deformer root;
   root.id = "def_root";
@@ -383,6 +438,37 @@ static bool loadModelFromMoc3Json(const std::filesystem::path &jsonPath, Engine 
     eng.model.meshes.emplace(mesh.id, mesh);
     eng.model.deformers[root.id].bound_meshes.push_back(mesh.id);
     ++meshCounter;
+  }
+
+  if (!facePartsSettings.parts.empty())
+  {
+    for (const auto &kv : facePartsSettings.parts)
+    {
+      for (const auto &meshId : kv.second)
+      {
+        eng.model.mesh_face_parts[meshId].insert(kv.first);
+      }
+    }
+    std::unordered_set<std::string> tags;
+    std::unordered_set<std::string> meshes;
+    for (const auto &kv : eng.model.mesh_face_parts)
+    {
+      meshes.insert(kv.first);
+      for (const auto &tag : kv.second)
+        tags.insert(tag);
+    }
+    const bool hasFaceTags = tags.count("eye_left") || tags.count("eye_right") || tags.count("eye")
+                             || tags.count("mouth") || tags.count("brow_left") || tags.count("brow_right")
+                             || tags.count("eye_white_left") || tags.count("eye_white_right")
+                             || tags.count("eye_ball_left") || tags.count("eye_ball_right");
+    std::cerr << "Face parts mapping loaded: " << tags.size() << " tags, " << meshes.size() << " meshes";
+    if (hasFaceTags)
+      std::cerr << " (face elements detected)";
+    std::cerr << "\n";
+  }
+  else
+  {
+    std::cerr << "No face parts mapping found (face elements not identified).\n";
   }
 
   // Use whichever is larger: declared canvas or actual bbox size, to keep aspect-fit sane.
@@ -598,7 +684,7 @@ static void scrollCallback(GLFWwindow *window, double, double yoffset)
     return;
   const float zoomFactor = std::pow(1.1f, static_cast<float>(yoffset));
   const float prevZoom = state->zoom;
-  const float nextZoom = clampFloat(state->zoom * zoomFactor, 0.5f, 4.0f);
+  const float nextZoom = clampFloat(state->zoom * zoomFactor, 0.5f, 8.0f);
   if (nextZoom == prevZoom)
     return;
 
@@ -664,6 +750,7 @@ static void printUsage(const char *argv0)
             << "Options:\n"
             << "  -m, --moc3=FILE             Path to .moc3.json\n"
             << "  -r, --render-settings=FILE  Path to .moc3.render-settings.json\n"
+            << "  -f, --face-parts=FILE       Path to .moc3.face-parts.json\n"
             << "  -t, --texture=FILE          Path to texture .png (override)\n"
             << "  -h, --help                  Show this help\n";
 }
@@ -694,6 +781,7 @@ int main(int argc, char **argv)
 {
   std::filesystem::path moc3JsonPath;
   std::filesystem::path renderSettingsPath;
+  std::filesystem::path facePartsPath;
   std::filesystem::path textureOverridePath;
 
   for (int i = 1; i < argc; ++i)
@@ -716,6 +804,11 @@ int main(int argc, char **argv)
       renderSettingsPath = value;
       continue;
     }
+    if (parseOptionValue(arg, "face-parts", value) || parseShortOptionValue(arg, "f", value))
+    {
+      facePartsPath = value;
+      continue;
+    }
     if (parseOptionValue(arg, "texture", value) || parseShortOptionValue(arg, "t", value))
     {
       textureOverridePath = value;
@@ -730,6 +823,11 @@ int main(int argc, char **argv)
     if ((arg == "-r" || arg == "--render-settings") && i + 1 < argc)
     {
       renderSettingsPath = argv[++i];
+      continue;
+    }
+    if ((arg == "-f" || arg == "--face-parts") && i + 1 < argc)
+    {
+      facePartsPath = argv[++i];
       continue;
     }
     if ((arg == "-t" || arg == "--texture") && i + 1 < argc)
@@ -837,7 +935,7 @@ int main(int argc, char **argv)
 
   Engine eng;
   std::unordered_map<std::string, std::filesystem::path> drawableTextures;
-  bool modelLoaded = loadModelFromMoc3Json(moc3JsonPath, eng, drawableTextures, renderSettingsPath);
+  bool modelLoaded = loadModelFromMoc3Json(moc3JsonPath, eng, drawableTextures, renderSettingsPath, facePartsPath);
   if (!eng.initGL())
     return -1;
   checkErr("after initGL");

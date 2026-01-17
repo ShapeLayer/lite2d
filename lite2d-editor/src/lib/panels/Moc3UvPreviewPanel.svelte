@@ -235,8 +235,8 @@
       <Select
         label="Mesh"
         options={$moc3State.model.drawables.map((mesh) => ({ label: mesh.id, value: mesh.id }))}
-        bind:value={selectedMeshId}
-        onchange={handleMeshSelectChange}
+        value={selectedMeshId}
+        on:change={handleMeshSelectChange}
       />
     </div>
 

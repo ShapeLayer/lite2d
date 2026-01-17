@@ -22,6 +22,7 @@
     display: grid;
     grid-template-rows: 1fr auto;
     gap: 12px;
+    height: 100%;
   }
 
   .hero {
