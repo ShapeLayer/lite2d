@@ -1,6 +1,8 @@
 #ifndef __MOC32JSON_CSM_SERIALIZE_H__
 #define __MOC32JSON_CSM_SERIALIZE_H__
 
+#include <vector>
+
 #include "json.hpp"
 
 #include "csm_allocate.h"
@@ -17,6 +19,8 @@ public:
   int fetch_value(
     std::unique_ptr<csm::CubismModel, std::function<void(csm::CubismModel*)>> model
   );
+  int add_model3(const std::vector<csm::csmByte>& model3_bytes);
+  int add_cdi3(const std::vector<csm::csmByte>& cdi3_bytes);
 };
 
 #endif  // __MOC32JSON_CSM_SERIALIZE_H__

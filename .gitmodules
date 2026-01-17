@@ -1,0 +1,3 @@
+[submodule "lite2d/external/stb"]
+	path = lite2d/external/stb
+	url = https://github.com/nothings/stb

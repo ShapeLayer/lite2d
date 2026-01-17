@@ -9,11 +9,13 @@ struct main_args {
   std::string input_file;
   bool output_required = false;
   std::string output_file;
+  std::string model3_file;
+  std::string cdi3_file;
 } typedef main_args_t;
 
 void print_usage()
 {
-  std::cout << "Usage: moc32json -o (json_output) <input_file.moc3>" << std::endl;
+  std::cout << "Usage: moc32json -o (json_output) [--model3 model3.json] [--cdi3 cdi3.json] <input_file.moc3>" << std::endl;
 }
 
 main_args_t parse_args(int argc, char *argv[])
@@ -26,6 +28,12 @@ main_args_t parse_args(int argc, char *argv[])
     if (now == "-o" && i + 1 < argc) {
       args.output_required = true;
       args.output_file = argv[i + 1];
+      i++;
+    } else if (now == "--model3" && i + 1 < argc) {
+      args.model3_file = argv[i + 1];
+      i++;
+    } else if (now == "--cdi3" && i + 1 < argc) {
+      args.cdi3_file = argv[i + 1];
       i++;
     } else {
       args.input_file = now;
@@ -72,6 +80,42 @@ int main(int argc, char *argv[])
     csm_controller->cleanup();
     delete csm_controller;
     return 1;
+  }
+
+  if (!args.model3_file.empty()) {
+    const auto model3_bytes = read_f(&args.model3_file);
+    if (model3_bytes.empty()) {
+      std::cerr << "Failed to read model3 file: " << args.model3_file << std::endl;
+      delete serializer;
+      csm_controller->cleanup();
+      delete csm_controller;
+      return 1;
+    }
+    if (serializer->add_model3(model3_bytes) != 0) {
+      std::cerr << "Failed to parse model3 file: " << args.model3_file << std::endl;
+      delete serializer;
+      csm_controller->cleanup();
+      delete csm_controller;
+      return 1;
+    }
+  }
+
+  if (!args.cdi3_file.empty()) {
+    const auto cdi3_bytes = read_f(&args.cdi3_file);
+    if (cdi3_bytes.empty()) {
+      std::cerr << "Failed to read cdi3 file: " << args.cdi3_file << std::endl;
+      delete serializer;
+      csm_controller->cleanup();
+      delete csm_controller;
+      return 1;
+    }
+    if (serializer->add_cdi3(cdi3_bytes) != 0) {
+      std::cerr << "Failed to parse cdi3 file: " << args.cdi3_file << std::endl;
+      delete serializer;
+      csm_controller->cleanup();
+      delete csm_controller;
+      return 1;
+    }
   }
 
   if (args.output_required) {

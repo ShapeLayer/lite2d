@@ -10,10 +10,12 @@ print_usage() {
 
 link() {
   ln -s ../../include/ $PROJ_ROOT_DIR/moc32json/external/commons
+  ln -s ../../include/ $PROJ_ROOT_DIR/lite2d/external/commons
 }
 
 unlink() {
   rm $PROJ_ROOT_DIR/moc32json/external/commons
+  rm $PROJ_ROOT_DIR/lite2d/external/commons
 }
 
 if [[ -z $1 || $1 == "help" ]]; then
