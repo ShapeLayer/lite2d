@@ -53,6 +53,13 @@ public:
   // param smoothing
   std::unordered_map<std::string, Spring> springs;
 
+  // When false, skip internal animation/reset so external code can drive params.
+  bool autoAnimate = true;
+
+  // Face pose amplification and translation scale (for ParamAngleX/Y/Z).
+  float faceAngleAmplify = 1.5f;
+  float facePosScale = 0.02f;
+
   bool initGL();
   void buildGLMeshes();
   void createCheckerTexture(const std::string &id, int w = 64, int h = 64);

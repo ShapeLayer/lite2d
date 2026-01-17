@@ -1,8 +1,30 @@
 <script lang="ts">
   import RenderPreview from './RenderPreview.svelte';
-  import { moc3Actions, moc3State } from '../moc3/store';
+  import { Checkbox } from 'lite2d-editor-ui';
+  import { FACE_PART_TAGS, moc3Actions, moc3State } from '../moc3/store';
 
   let renderStatus = 'No render yet';
+  let excludeHiddenFromSelection = true;
+
+  const handleContextAction = (event: CustomEvent<{ action: 'add-face-part' | 'clear-face-parts' | 'set-visible'; ids: string[]; tag?: string }>) => {
+    const { action, ids, tag } = event.detail;
+    if (!ids.length) return;
+    if (action === 'add-face-part' && tag) {
+      ids.forEach((id) => moc3Actions.addFacePartTag(id, tag));
+      return;
+    }
+    if (action === 'clear-face-parts') {
+      ids.forEach((id) => moc3Actions.clearFacePartsForMesh(id));
+      return;
+    }
+    if (action === 'set-visible') {
+      const visible = tag !== 'hidden';
+      ids.forEach((id) => {
+        if ($moc3State.hiddenDrawables[id] === visible) return;
+        moc3Actions.toggleVisibility(id);
+      });
+    }
+  };
 </script>
 
 <div class="panel">
@@ -14,6 +36,7 @@
         <div class="status muted">{renderStatus}</div>
       </div>
       <div class="render-actions">
+        <Checkbox label="Exclude hidden" bind:checked={excludeHiddenFromSelection} />
         <button type="button" class="ui-btn ghost" onclick={moc3Actions.showAllDrawables}>
           Show all
         </button>
@@ -28,7 +51,12 @@
       textureImage={$moc3State.textureImage}
       renderOrder={$moc3State.renderOrder}
       hiddenDrawables={$moc3State.hiddenDrawables}
-      onselect={(event) => moc3Actions.selectMesh(event.detail.id)}
+      selectedIds={$moc3State.selectedMeshIds}
+      facePartTags={FACE_PART_TAGS}
+      excludeHiddenFromSelection={excludeHiddenFromSelection}
+      on:select={(event) => moc3Actions.selectMesh(event.detail.id)}
+      on:selectrange={(event) => moc3Actions.selectMeshes(event.detail.ids)}
+      on:contextaction={handleContextAction}
     />
   {:else}
     <div class="placeholder">No moc3 file loaded. Load a file to render.</div>

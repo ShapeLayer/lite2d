@@ -133,7 +133,7 @@
         <div class="mesh-body" bind:this={bodyScrollEl} onscroll={syncHeaderScroll}>
           {#each meshRowsData as row}
             <div
-              class={`mesh-row ${row.id === $moc3State.selectedMeshId ? 'selected' : ''} ${row.id === draggingId ? 'dragging' : ''} ${row.id === dragOverId ? 'drag-over' : ''}`}
+              class={`mesh-row ${$moc3State.selectedMeshIds?.includes(row.id) ? 'selected' : ''} ${row.id === draggingId ? 'dragging' : ''} ${row.id === dragOverId ? 'drag-over' : ''}`}
               role="row"
               tabindex="0"
               draggable="true"

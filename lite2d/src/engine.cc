@@ -336,28 +336,95 @@ static void applyTranslateY(std::vector<glm::vec2> &verts, float offset)
     v.y += offset;
 }
 
+static void applyTranslate(std::vector<glm::vec2> &verts, const glm::vec2 &offset)
+{
+  for (auto &v : verts)
+    v += offset;
+}
+
+static void applyRotateZ(std::vector<glm::vec2> &verts, float degrees)
+{
+  if (verts.empty())
+    return;
+  glm::vec2 minV = verts.front();
+  glm::vec2 maxV = verts.front();
+  for (const auto &v : verts)
+  {
+    minV.x = std::min(minV.x, v.x);
+    minV.y = std::min(minV.y, v.y);
+    maxV.x = std::max(maxV.x, v.x);
+    maxV.y = std::max(maxV.y, v.y);
+  }
+  glm::vec2 center = 0.5f * (minV + maxV);
+  float rad = glm::radians(degrees);
+  float c = std::cos(rad);
+  float s = std::sin(rad);
+  for (auto &v : verts)
+  {
+    glm::vec2 p = v - center;
+    v = center + glm::vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+  }
+}
+
 void Engine::update(float timeSec, float dt)
 {
-  model.resetParams();
-  if (!model.animations.empty())
-    applyAnimation(model.animations[0], timeSec);
-  // extra expressions can be applied here
-  // applyExpressions({{"blink", 0.0f}});
+  if (autoAnimate)
+  {
+    model.resetParams();
+    if (!model.animations.empty())
+      applyAnimation(model.animations[0], timeSec);
+    // extra expressions can be applied here
+    // applyExpressions({{"blink", 0.0f}});
 
-  const float blinkOpen = computeBlinkOpen(timeSec);
-  const float mouthOpenAnim = 0.2f + 0.3f * (0.5f + 0.5f * std::sin(timeSec * 1.7f));
+    const float blinkOpen = computeBlinkOpen(timeSec);
+    const float mouthOpenAnim = 0.2f + 0.3f * (0.5f + 0.5f * std::sin(timeSec * 1.7f));
 
-  if (auto itEye = model.params.find("ParamEyeLOpen"); itEye != model.params.end())
-    itEye->second.set(blinkOpen);
-  if (auto itEye = model.params.find("ParamEyeROpen"); itEye != model.params.end())
-    itEye->second.set(blinkOpen);
+    if (auto itEye = model.params.find("ParamEyeLOpen"); itEye != model.params.end())
+      itEye->second.set(blinkOpen);
+    if (auto itEye = model.params.find("ParamEyeROpen"); itEye != model.params.end())
+      itEye->second.set(blinkOpen);
 
-  if (auto itMouthY = model.params.find("ParamMouthOpenY"); itMouthY != model.params.end())
-    itMouthY->second.set(mouthOpenAnim);
-  else if (auto itMouth = model.params.find("ParamMouthOpen"); itMouth != model.params.end())
-    itMouth->second.set(mouthOpenAnim);
+    if (auto itMouthY = model.params.find("ParamMouthOpenY"); itMouthY != model.params.end())
+      itMouthY->second.set(mouthOpenAnim);
+    else if (auto itMouth = model.params.find("ParamMouthOpen"); itMouth != model.params.end())
+      itMouth->second.set(mouthOpenAnim);
 
-  float mouthOpen = mouthOpenAnim;
+    float mouthOpen = mouthOpenAnim;
+    if (auto itMouthY = model.params.find("ParamMouthOpenY"); itMouthY != model.params.end())
+    {
+      Spring &sp = springs["ParamMouthOpenY"];
+      mouthOpen = sp.update(itMouthY->second.cur_v, dt);
+      itMouthY->second.set(mouthOpen);
+    }
+    else if (auto itMouth = model.params.find("ParamMouthOpen"); itMouth != model.params.end())
+    {
+      Spring &sp = springs["ParamMouthOpen"];
+      mouthOpen = sp.update(itMouth->second.cur_v, dt);
+      itMouth->second.set(mouthOpen);
+    }
+  }
+
+  float angleX = model.params.count("ParamAngleX") ? model.params["ParamAngleX"].cur_v : 0.0f;
+  float angleY = model.params.count("ParamAngleY") ? model.params["ParamAngleY"].cur_v : 0.0f;
+  float angleZ = model.params.count("ParamAngleZ") ? model.params["ParamAngleZ"].cur_v : 0.0f;
+  if (auto itRoot = model.deformers.find("def_root"); itRoot != model.deformers.end())
+  {
+    itRoot->second.pos = {0.0f, 0.0f};
+    itRoot->second.rot_deg = 0.0f;
+  }
+
+  computeDeformers();
+
+  const bool hasFaceParts = !model.mesh_face_parts.empty();
+  const bool hasBodyParts = !model.mesh_body_parts.empty();
+  const bool hasSeamParts = !model.mesh_seam_parts.empty();
+  const float eyeLOpen = model.params.count("ParamEyeLOpen") ? model.params["ParamEyeLOpen"].cur_v : 1.0f;
+  const float eyeROpen = model.params.count("ParamEyeROpen") ? model.params["ParamEyeROpen"].cur_v : 1.0f;
+  const float eyeOpenAvg = 0.5f * (eyeLOpen + eyeROpen);
+  const float mouthForm = model.params.count("ParamMouthForm") ? model.params["ParamMouthForm"].cur_v : 0.0f;
+  const float browL = model.params.count("ParamBrowLY") ? model.params["ParamBrowLY"].cur_v : 0.0f;
+  const float browR = model.params.count("ParamBrowRY") ? model.params["ParamBrowRY"].cur_v : 0.0f;
+  float mouthOpen = 0.0f;
   if (auto itMouthY = model.params.find("ParamMouthOpenY"); itMouthY != model.params.end())
   {
     Spring &sp = springs["ParamMouthOpenY"];
@@ -371,26 +438,32 @@ void Engine::update(float timeSec, float dt)
     itMouth->second.set(mouthOpen);
   }
 
-  if (auto itRoot = model.deformers.find("def_root"); itRoot != model.deformers.end())
-  {
-    itRoot->second.pos = {0.0f, 0.0f};
-    itRoot->second.rot_deg = 0.0f;
-  }
-
-  computeDeformers();
-
-  const bool hasFaceParts = !model.mesh_face_parts.empty();
-  const float eyeLOpen = model.params.count("ParamEyeLOpen") ? model.params["ParamEyeLOpen"].cur_v : blinkOpen;
-  const float eyeROpen = model.params.count("ParamEyeROpen") ? model.params["ParamEyeROpen"].cur_v : blinkOpen;
-  const float eyeOpenAvg = 0.5f * (eyeLOpen + eyeROpen);
-  const float mouthForm = model.params.count("ParamMouthForm") ? model.params["ParamMouthForm"].cur_v : 0.0f;
-  const float browL = model.params.count("ParamBrowLY") ? model.params["ParamBrowLY"].cur_v : 0.0f;
-  const float browR = model.params.count("ParamBrowRY") ? model.params["ParamBrowRY"].cur_v : 0.0f;
-
   auto meshHasPart = [&](const std::string &meshId, const std::initializer_list<const char *> &parts)
   {
     auto it = model.mesh_face_parts.find(meshId);
     if (it == model.mesh_face_parts.end())
+      return false;
+    for (const auto *part : parts)
+      if (it->second.count(part))
+        return true;
+    return false;
+  };
+
+  auto meshHasBodyPart = [&](const std::string &meshId, const std::initializer_list<const char *> &parts)
+  {
+    auto it = model.mesh_body_parts.find(meshId);
+    if (it == model.mesh_body_parts.end())
+      return false;
+    for (const auto *part : parts)
+      if (it->second.count(part))
+        return true;
+    return false;
+  };
+
+  auto meshHasSeam = [&](const std::string &meshId, const std::initializer_list<const char *> &parts)
+  {
+    auto it = model.mesh_seam_parts.find(meshId);
+    if (it == model.mesh_seam_parts.end())
       return false;
     for (const auto *part : parts)
       if (it->second.count(part))
@@ -424,6 +497,38 @@ void Engine::update(float timeSec, float dt)
       const bool isEye = containsToken(lowerId, "eye") && !containsToken(lowerId, "brow");
       isEyeGeneric = isEye;
       isMouth = containsToken(lowerId, "mouth") || containsToken(lowerId, "lip");
+    }
+
+    const bool isFaceRegion = isLeftEye || isRightEye || isEyeGeneric || isMouth || isBrowL || isBrowR
+                  || (hasFaceParts && meshHasPart(kv.first, {"face", "face_motion", "nose", "cheek_left", "cheek_right"}));
+    const bool isBodyRegion = hasBodyParts && meshHasBodyPart(kv.first, {"body", "torso", "chest", "shoulder_left", "shoulder_right", "neck", "head", "hair"});
+    const bool isSeamRegion = hasSeamParts && meshHasSeam(kv.first, {"neck_seam", "jaw_seam"});
+
+    {
+      const float clampedAngleX = glm::clamp(angleX, -20.0f, 20.0f);
+      const float clampedAngleY = glm::clamp(angleY, -20.0f, 20.0f);
+      const float clampedAngleZ = glm::clamp(angleZ, -15.0f, 15.0f);
+      const glm::vec2 poseOffset = {clampedAngleX * facePosScale, clampedAngleY * facePosScale};
+      const float poseRot = clampedAngleZ * faceAngleAmplify;
+
+      float poseWeight = 0.25f;
+      if (!hasFaceParts)
+        poseWeight = 0.35f;
+      if (isBodyRegion)
+        poseWeight = 0.4f;
+      if (isSeamRegion)
+        poseWeight = 0.65f;
+      if (isFaceRegion)
+        poseWeight = 1.0f;
+
+      applyTranslate(deformed, poseOffset * poseWeight);
+      applyRotateZ(deformed, poseRot * poseWeight);
+
+      if (isSeamRegion)
+      {
+        float warp = 1.0f - std::min(0.08f, std::abs(clampedAngleX) / 30.0f * 0.06f);
+        applyScaleX(deformed, warp);
+      }
     }
 
     if (isLeftEye || isRightEye || isEyeGeneric)

@@ -1,0 +1,210 @@
+{
+  "model": "mao_pro.moc3.json",
+  "face_parts": {
+    "eye_left": [
+      "ArtMesh255",
+      "ArtMesh245",
+      "ArtMesh244",
+      "ArtMesh291"
+    ],
+    "eye_ball_left": [
+      "ArtMesh255"
+    ],
+    "eye": [
+      "ArtMesh255",
+      "ArtMesh245",
+      "ArtMesh244",
+      "ArtMesh291",
+      "ArtMesh250",
+      "ArtMesh238",
+      "ArtMesh286",
+      "ArtMesh237"
+    ],
+    "face_motion": [
+      "ArtMesh255",
+      "ArtMesh245",
+      "ArtMesh244",
+      "ArtMesh291",
+      "ArtMesh250",
+      "ArtMesh238",
+      "ArtMesh286",
+      "ArtMesh237",
+      "ArtMesh290",
+      "ArtMesh258",
+      "ArtMesh260",
+      "ArtMesh289",
+      "ArtMesh257",
+      "ArtMesh259",
+      "ArtMesh266",
+      "ArtMesh267",
+      "ArtMesh265",
+      "ArtMesh271",
+      "ArtMesh268",
+      "ArtMesh269",
+      "ArtMesh278",
+      "ArtMesh262"
+    ],
+    "head": [
+      "ArtMesh255",
+      "ArtMesh245",
+      "ArtMesh244",
+      "ArtMesh291",
+      "ArtMesh250",
+      "ArtMesh238",
+      "ArtMesh286",
+      "ArtMesh237",
+      "ArtMesh278"
+    ],
+    "hair": [
+      "ArtMesh255",
+      "ArtMesh250",
+      "ArtMesh229",
+      "ArtMesh223",
+      "ArtMesh225",
+      "ArtMesh226",
+      "ArtMesh230"
+    ],
+    "eye_white_left": [
+      "ArtMesh245"
+    ],
+    "eyelid_left": [
+      "ArtMesh244",
+      "ArtMesh291"
+    ],
+    "eye_right": [
+      "ArtMesh250",
+      "ArtMesh238",
+      "ArtMesh286",
+      "ArtMesh237"
+    ],
+    "eye_ball_right": [
+      "ArtMesh250"
+    ],
+    "eye_white_right": [
+      "ArtMesh238"
+    ],
+    "eyelid_right": [
+      "ArtMesh286",
+      "ArtMesh237"
+    ],
+    "brow_left": [
+      "ArtMesh290"
+    ],
+    "cheek_left": [
+      "ArtMesh258",
+      "ArtMesh260"
+    ],
+    "brow_right": [
+      "ArtMesh289"
+    ],
+    "cheek_right": [
+      "ArtMesh257",
+      "ArtMesh259"
+    ],
+    "lip_upper": [
+      "ArtMesh266"
+    ],
+    "mouth": [
+      "ArtMesh266",
+      "ArtMesh267",
+      "ArtMesh265"
+    ],
+    "lip_lower": [
+      "ArtMesh267"
+    ],
+    "tongue": [
+      "ArtMesh271"
+    ],
+    "teeth": [
+      "ArtMesh268",
+      "ArtMesh269"
+    ],
+    "face": [
+      "ArtMesh278"
+    ],
+    "neck": [
+      "ArtMesh278"
+    ],
+    "jaw_seam": [
+      "ArtMesh278"
+    ],
+    "nose": [
+      "ArtMesh262"
+    ],
+    "hair_side": [
+      "ArtMesh229",
+      "ArtMesh223",
+      "ArtMesh225",
+      "ArtMesh226",
+      "ArtMesh230"
+    ],
+    "shoulder_left": [
+      "ArtMesh119"
+    ],
+    "body": [
+      "ArtMesh119",
+      "ArtMesh201",
+      "ArtMesh135",
+      "ArtMesh122",
+      "ArtMesh121",
+      "ArtMesh178",
+      "ArtMesh177",
+      "ArtMesh175",
+      "ArtMesh174",
+      "ArtMesh173",
+      "ArtMesh176",
+      "ArtMesh65",
+      "ArtMesh204",
+      "ArtMesh206",
+      "ArtMesh207",
+      "ArtMesh208",
+      "ArtMesh205",
+      "ArtMesh200",
+      "ArtMesh197",
+      "ArtMesh181",
+      "ArtMesh172",
+      "ArtMesh180",
+      "ArtMesh179",
+      "ArtMesh166",
+      "ArtMesh182",
+      "ArtMesh145",
+      "ArtMesh199",
+      "ArtMesh147",
+      "ArtMesh146",
+      "ArtMesh144",
+      "ArtMesh148",
+      "ArtMesh136",
+      "ArtMesh133",
+      "ArtMesh132",
+      "ArtMesh131",
+      "ArtMesh130",
+      "ArtMesh129",
+      "ArtMesh128",
+      "ArtMesh127",
+      "ArtMesh126",
+      "ArtMesh139",
+      "ArtMesh203"
+    ],
+    "shoulder_right": [
+      "ArtMesh201"
+    ],
+    "ear_right": [
+      "ArtMesh280"
+    ],
+    "chest": [
+      "ArtMesh135"
+    ],
+    "torso": [
+      "ArtMesh135"
+    ],
+    "neck_seam": [
+      "ArtMesh285"
+    ],
+    "hair_front": [
+      "ArtMesh228"
+    ],
+    "hair_back": [
+      "ArtMesh231"
+    ]
+  }
+}

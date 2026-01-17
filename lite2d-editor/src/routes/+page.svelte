@@ -23,7 +23,7 @@
   const panels: PanelRegistration[] = [
     { id: 'moc3-file', title: 'MOC3 File', component: Moc3FilePanel, minWidth: 360, minHeight: 240 },
     { id: 'moc3-drawables', title: 'Drawables', component: Moc3DrawablesPanel, minWidth: 360, minHeight: 320 },
-    { id: 'moc3-face-parts', title: 'Face Parts', component: Moc3FacePartValidatorPanel, minWidth: 420, minHeight: 320 },
+    { id: 'moc3-face-parts', title: 'Parts Index', component: Moc3FacePartValidatorPanel, minWidth: 420, minHeight: 320 },
     { id: 'moc3-render', title: 'Render Preview', component: Moc3RenderPreviewPanel, minWidth: 360, minHeight: 320 },
     { id: 'moc3-uv', title: 'UV Preview', component: Moc3UvPreviewPanel, minWidth: 420, minHeight: 360 }
   ];
@@ -49,8 +49,8 @@
         { id: 'use-model-texture', label: 'Use model texture', onSelect: () => moc3Actions.tryLoadModelTexture() },
         { id: 'save-render-settings', label: 'Save render settings', onSelect: () => moc3Actions.exportRenderSettings() },
         { id: 'load-render-settings', label: 'Load render settings', onSelect: () => renderSettingsInput?.click() },
-        { id: 'save-face-parts', label: 'Save face parts', onSelect: () => moc3Actions.exportFaceParts() },
-        { id: 'load-face-parts', label: 'Load face parts', onSelect: () => facePartsInput?.click() }
+        { id: 'save-face-parts', label: 'Save parts', onSelect: () => moc3Actions.exportFaceParts() },
+        { id: 'load-face-parts', label: 'Load parts', onSelect: () => facePartsInput?.click() }
       ]
     });
     ui.registerMenu({
@@ -76,7 +76,7 @@
     setupLayout();
   });
 
-  $: themeName = $activeTheme.name;
+  $: themeName = $activeTheme.name as 'dark' | 'light';
 
   const handleFileChange = async (event: Event) => {
     const input = event.target as HTMLInputElement;
@@ -115,6 +115,7 @@
     await moc3Actions.importFacePartsFromFile(file);
     input.value = '';
   };
+
 
   const loadSample = async () => {
     try {

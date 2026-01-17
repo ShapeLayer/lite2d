@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount } from 'svelte';
+  import { Eye, EyeOff } from '@lucide/svelte';
   import type { Moc3Drawable, Moc3Model } from '../moc3/parse';
 
   export let model: Moc3Model | null = null;
@@ -7,8 +8,15 @@
   export let renderOrder: string[] = [];
   export let hiddenDrawables: Record<string, boolean> = {};
   export let status = 'No render yet';
+  export let selectedIds: string[] = [];
+  export let facePartTags: string[] = [];
+  export let excludeHiddenFromSelection = true;
 
-  const dispatch = createEventDispatcher<{ select: { id: string } }>();
+  const dispatch = createEventDispatcher<{
+    select: { id: string };
+    selectrange: { ids: string[] };
+    contextaction: { action: 'add-face-part' | 'clear-face-parts' | 'set-visible'; ids: string[]; tag?: string };
+  }>();
 
   let canvasEl: HTMLCanvasElement | null = null;
   let canvasWidth = 512;
@@ -27,14 +35,22 @@
   const minZoom = 0.35;
   const maxZoom = 4;
   let isPanning = false;
+  let isSelecting = false;
   let pointerId: number | null = null;
   let lastPointer: { x: number; y: number } | null = null;
+  let selectionStart: { x: number; y: number; screenX: number; screenY: number } | null = null;
+  let selectionEnd: { x: number; y: number; screenX: number; screenY: number } | null = null;
+  let selectionRect: { left: number; top: number; width: number; height: number } | null = null;
+  let selectionDragged = false;
+  const selectionThreshold = 4;
+  let contextMenu: { x: number; y: number; ids: string[] } | null = null;
   let renderRaf = 0;
   let pickRaf = 0;
   let pendingPick: { x: number; y: number; screenX: number; screenY: number } | null = null;
   let isCanvasVisible = true;
   let resizeObserver: ResizeObserver | null = null;
   let intersectionObserver: IntersectionObserver | null = null;
+  let safeFacePartTags: string[] = [];
 
   let drawableMap = new Map<string, Moc3Drawable>();
   let drawableBounds = new Map<string, { minX: number; maxX: number; minY: number; maxY: number }>();
@@ -120,10 +136,28 @@
   };
 
   const handlePointerDown = (event: PointerEvent) => {
-    isPanning = true;
-    pointerId = event.pointerId;
-    lastPointer = { x: event.clientX, y: event.clientY };
-    canvasEl?.setPointerCapture(event.pointerId);
+    if (contextMenu) contextMenu = null;
+    if (event.button === 1) {
+      isPanning = true;
+      pointerId = event.pointerId;
+      lastPointer = { x: event.clientX, y: event.clientY };
+      canvasEl?.setPointerCapture(event.pointerId);
+      return;
+    }
+
+    if (event.button === 0) {
+      const point = getCanvasPoint(event);
+      if (!point) return;
+      isSelecting = true;
+      selectionDragged = false;
+      selectionStart = point;
+      selectionEnd = point;
+      selectionRect = { left: point.screenX, top: point.screenY, width: 0, height: 0 };
+      pointerId = event.pointerId;
+      canvasEl?.setPointerCapture(event.pointerId);
+      hoverId = null;
+      hoverLabel = null;
+    }
   };
 
   const handlePointerMove = (event: PointerEvent) => {
@@ -133,6 +167,27 @@
       panX += dx;
       panY += dy;
       lastPointer = { x: event.clientX, y: event.clientY };
+      scheduleRender();
+      return;
+    }
+
+    if (isSelecting && event.pointerId === pointerId && selectionStart) {
+      const point = getCanvasPoint(event);
+      if (!point) return;
+      selectionEnd = point;
+      const dx = point.screenX - selectionStart.screenX;
+      const dy = point.screenY - selectionStart.screenY;
+      if (Math.abs(dx) > selectionThreshold || Math.abs(dy) > selectionThreshold) {
+        selectionDragged = true;
+      }
+      selectionRect = {
+        left: Math.min(selectionStart.screenX, point.screenX),
+        top: Math.min(selectionStart.screenY, point.screenY),
+        width: Math.abs(dx),
+        height: Math.abs(dy)
+      };
+      hoverId = null;
+      hoverLabel = null;
       scheduleRender();
       return;
     }
@@ -154,24 +209,60 @@
     isPanning = false;
     pointerId = null;
     lastPointer = null;
+    if (isSelecting && selectionStart && selectionEnd) {
+      const additive = event.ctrlKey || event.metaKey;
+      if (selectionDragged) {
+        const ids = pickDrawablesInRect(selectionStart, selectionEnd);
+        const merged = additive ? Array.from(new Set([...selectedIds, ...ids])) : ids;
+        dispatch('selectrange', { ids: merged });
+      } else {
+        const id = pickDrawableAt(selectionEnd);
+        if (id) {
+          if (additive) {
+            const merged = Array.from(new Set([...selectedIds, id]));
+            dispatch('selectrange', { ids: merged });
+          } else {
+            dispatch('select', { id });
+          }
+        } else if (!additive) {
+          dispatch('selectrange', { ids: [] });
+        }
+      }
+    }
+    isSelecting = false;
+    selectionStart = null;
+    selectionEnd = null;
+    selectionRect = null;
+    selectionDragged = false;
   };
 
   const handlePointerLeave = () => {
     hoverId = null;
     hoverLabel = null;
     isPanning = false;
+    isSelecting = false;
     pointerId = null;
     lastPointer = null;
+    selectionStart = null;
+    selectionEnd = null;
+    selectionRect = null;
+    selectionDragged = false;
     scheduleRender();
   };
 
-  const handleClick = (event: MouseEvent) => {
+  const handleContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    if (!canvasEl) return;
     const point = getCanvasPoint(event);
     if (!point) return;
-    const id = pickDrawableAt(point);
-    if (id) {
-      dispatch('select', { id });
+    const hitId = pickDrawableAt(point);
+    let contextIds = selectedIds;
+    if (hitId && !selectedIds.includes(hitId)) {
+      dispatch('select', { id: hitId });
+      contextIds = [hitId];
     }
+    if (!contextIds.length) return;
+    contextMenu = { x: point.screenX, y: point.screenY, ids: contextIds };
   };
 
   const getCanvasPoint = (event: PointerEvent | MouseEvent) => {
@@ -240,7 +331,7 @@
 
     for (let o = 0; o < order.length; o += 1) {
       const id = order[o];
-      if (hiddenDrawables[id]) continue;
+      if (excludeHiddenFromSelection && hiddenDrawables[id]) continue;
       const bounds = drawableBounds.get(id);
       if (bounds) {
         if (bounds.maxX < viewBounds.minX || bounds.minX > viewBounds.maxX) continue;
@@ -272,6 +363,35 @@
 
     return null;
   };
+
+  const pickDrawablesInRect = (
+    start: { x: number; y: number; screenX: number; screenY: number },
+    end: { x: number; y: number; screenX: number; screenY: number }
+  ) => {
+    if (!model) return [];
+    const minX = Math.min(start.x, end.x);
+    const maxX = Math.max(start.x, end.x);
+    const minY = Math.min(start.y, end.y);
+    const maxY = Math.max(start.y, end.y);
+    const order = renderOrder.length ? renderOrder : model.drawables.map((drawable) => drawable.id).reverse();
+    const ids: string[] = [];
+    order.forEach((id) => {
+      if (excludeHiddenFromSelection && hiddenDrawables[id]) return;
+      const bounds = drawableBounds.get(id);
+      if (!bounds) return;
+      if (bounds.maxX < minX || bounds.minX > maxX) return;
+      if (bounds.maxY < minY || bounds.minY > maxY) return;
+      ids.push(id);
+    });
+    return ids;
+  };
+
+  const triggerContextAction = (action: 'add-face-part' | 'clear-face-parts' | 'set-visible', tag?: string) => {
+    if (!contextMenu) return;
+    dispatch('contextaction', { action, tag, ids: contextMenu.ids });
+    contextMenu = null;
+  };
+
 
   const drawTexturedTriangle = (
     ctx: CanvasRenderingContext2D,
@@ -385,6 +505,36 @@
       ctx.drawImage(cacheCanvas as CanvasImageSource, 0, 0, canvasWidth, canvasHeight);
     }
 
+    if (selectedIds.length) {
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.95)';
+      ctx.lineWidth = 1.2;
+      selectedIds.forEach((id) => {
+        const selected = drawableMap.get(id);
+        if (!selected || hiddenDrawables[id] || !selected.positions.length || !selected.indices.length) return;
+        ctx.beginPath();
+        for (let i = 0; i < selected.indices.length; i += 3) {
+          const i0 = selected.indices[i];
+          const i1 = selected.indices[i + 1];
+          const i2 = selected.indices[i + 2];
+          const p0Raw = selected.positions[i0];
+          const p1Raw = selected.positions[i1];
+          const p2Raw = selected.positions[i2];
+          if (!p0Raw || !p1Raw || !p2Raw) continue;
+          const p0 = positionToCanvas(p0Raw, model.canvas.width, model.canvas.height);
+          const p1 = positionToCanvas(p1Raw, model.canvas.width, model.canvas.height);
+          const p2 = positionToCanvas(p2Raw, model.canvas.width, model.canvas.height);
+          ctx.moveTo(p0.x, p0.y);
+          ctx.lineTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.closePath();
+        }
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
     if (hoverId) {
       const hovered = drawableMap.get(hoverId);
       if (hovered && !hiddenDrawables[hoverId] && hovered.positions.length && hovered.indices.length) {
@@ -488,6 +638,8 @@
 
   $: aspectStyle = model ? `aspect-ratio: ${model.canvas.width} / ${model.canvas.height};` : 'aspect-ratio: 1 / 1;';
 
+  $: safeFacePartTags = facePartTags ?? [];
+
   $: renderTrigger = `${cacheTrigger}-${hoverId ?? 'none'}-${panX.toFixed(1)}-${panY.toFixed(1)}-${zoom.toFixed(3)}`;
   $: if (canvasEl) {
     renderTrigger;
@@ -505,11 +657,66 @@
     onpointermove={handlePointerMove}
     onpointerup={handlePointerUp}
     onpointerleave={handlePointerLeave}
-    onclick={handleClick}
+    oncontextmenu={handleContextMenu}
   ></canvas>
   {#if hoverId && hoverLabel}
     <div class="render-hover-label" style={`left: ${hoverLabel.x}px; top: ${hoverLabel.y}px;`}>
       {hoverId}
+    </div>
+  {/if}
+  {#if selectionRect}
+    <div
+      class="selection-rect"
+      style={`left: ${selectionRect.left}px; top: ${selectionRect.top}px; width: ${selectionRect.width}px; height: ${selectionRect.height}px;`}
+    ></div>
+  {/if}
+  {#if contextMenu}
+    <div
+      class="context-menu"
+      style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
+    >
+      <div class="context-title">{contextMenu.ids.length} selected</div>
+      <div class="context-icon-row">
+        <button
+          type="button"
+          class="context-icon-btn"
+          title="Set visible"
+          aria-label="Set visible"
+          onclick={() => triggerContextAction('set-visible', 'visible')}
+        >
+          <Eye size={14} />
+        </button>
+        <button
+          type="button"
+          class="context-icon-btn"
+          title="Set invisible"
+          aria-label="Set invisible"
+          onclick={() => triggerContextAction('set-visible', 'hidden')}
+        >
+          <EyeOff size={14} />
+        </button>
+      </div>
+      {#if safeFacePartTags.length}
+        <div class="context-section">
+          <div class="context-label">Add face part</div>
+          {#each safeFacePartTags as tag}
+            <button
+              type="button"
+              class="context-item"
+              onclick={() => triggerContextAction('add-face-part', String(tag))}
+            >
+              {tag}
+            </button>
+          {/each}
+        </div>
+      {/if}
+      <button
+        type="button"
+        class="context-item danger"
+        onclick={() => triggerContextAction('clear-face-parts')}
+      >
+        Clear face parts
+      </button>
     </div>
   {/if}
 </div>
@@ -542,5 +749,92 @@
     white-space: nowrap;
     border: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  }
+
+  .selection-rect {
+    position: absolute;
+    border: 1px dashed rgba(148, 163, 184, 0.9);
+    background: rgba(56, 189, 248, 0.12);
+    pointer-events: none;
+  }
+
+  .context-menu {
+    position: absolute;
+    min-width: 180px;
+    max-height: 320px;
+    overflow: auto;
+    background: rgba(15, 23, 42, 0.98);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 8px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
+    z-index: 5;
+  }
+
+  .context-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(226, 232, 240, 0.8);
+    margin-bottom: 6px;
+  }
+
+  .context-icon-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .context-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(30, 41, 59, 0.7);
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .context-icon-btn:hover {
+    background: rgba(148, 163, 184, 0.2);
+  }
+
+  .context-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .context-label {
+    font-size: 11px;
+    color: rgba(148, 163, 184, 0.9);
+    margin-bottom: 4px;
+  }
+
+  .context-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .context-item:hover {
+    background: rgba(148, 163, 184, 0.18);
+  }
+
+  .context-item.danger {
+    color: #fca5a5;
   }
 </style>

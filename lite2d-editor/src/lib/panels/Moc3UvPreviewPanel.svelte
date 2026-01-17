@@ -23,6 +23,7 @@
   let isPanning = false;
   let pointerId: number | null = null;
   let lastPointer: { x: number; y: number } | null = null;
+  let isWheelDrag = false;
 
   const clampZoom = (value: number) => Math.min(maxZoom, Math.max(minZoom, value));
 
@@ -84,11 +85,62 @@
     updateZoom(zoom * factor, { x: event.clientX, y: event.clientY });
   };
 
+  const pointInTriangle = (p: [number, number], a: [number, number], b: [number, number], c: [number, number]) => {
+    const sign = (p1: [number, number], p2: [number, number], p3: [number, number]) =>
+      (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1]);
+    const d1 = sign(p, a, b);
+    const d2 = sign(p, b, c);
+    const d3 = sign(p, c, a);
+    const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+    const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+    return !(hasNeg && hasPos);
+  };
+
+  const triArea = (a: [number, number], b: [number, number], c: [number, number]) =>
+    Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) * 0.5;
+
   const handlePointerDown = (event: PointerEvent) => {
-    isPanning = true;
-    pointerId = event.pointerId;
-    lastPointer = { x: event.clientX, y: event.clientY };
-    canvasEl?.setPointerCapture(event.pointerId);
+    if (event.button === 1) {
+      event.preventDefault();
+      isPanning = true;
+      isWheelDrag = true;
+      pointerId = event.pointerId;
+      lastPointer = { x: event.clientX, y: event.clientY };
+      canvasEl?.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (event.button !== 0) return;
+    if (!canvasEl) return;
+    const rect = canvasEl.getBoundingClientRect();
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
+    const c = canvasSize / 2;
+    const canvasX = (screenX - c - panX) / zoom + c;
+    const canvasY = (screenY - c - panY) / zoom + c;
+    const u = canvasX / canvasSize;
+    const v = 1 - canvasY / canvasSize;
+
+    const drawables = $moc3State.model?.drawables ?? [];
+    let best: Moc3Drawable | null = null;
+    let bestArea = Infinity;
+    for (const drawable of drawables) {
+      if (!drawable.uvs?.length) continue;
+      const triangles = buildTriangles(drawable.uvs);
+      if (!triangles.length) continue;
+      for (const tri of triangles) {
+        if (tri.length !== 3) continue;
+        if (!pointInTriangle([u, v], tri[0], tri[1], tri[2])) continue;
+        const area = triArea(tri[0], tri[1], tri[2]);
+        if (area < bestArea) {
+          bestArea = area;
+          best = drawable;
+        }
+      }
+    }
+
+    if (best) {
+      moc3Actions.selectMesh(best.id);
+    }
   };
 
   const handlePointerMove = (event: PointerEvent) => {
@@ -105,8 +157,26 @@
       canvasEl?.releasePointerCapture(event.pointerId);
     }
     isPanning = false;
+    isWheelDrag = false;
     pointerId = null;
     lastPointer = null;
+  };
+
+  const focusOnBounds = (bounds: { minU: number; maxU: number; minV: number; maxV: number }) => {
+    const minX = bounds.minU * canvasSize;
+    const maxX = bounds.maxU * canvasSize;
+    const minY = (1 - bounds.maxV) * canvasSize;
+    const maxY = (1 - bounds.minV) * canvasSize;
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    const pad = 0.85;
+    const targetZoom = clampZoom((canvasSize * pad) / Math.max(width, height));
+    zoom = targetZoom;
+    const centerX = (minX + maxX) * 0.5;
+    const centerY = (minY + maxY) * 0.5;
+    const c = canvasSize / 2;
+    panX = -(centerX - c) * zoom;
+    panY = -(centerY - c) * zoom;
   };
 
   const renderPreview = () => {
@@ -217,6 +287,7 @@
       )
     : null;
 
+
   $: previewTrigger = `${selectedMeshId}-${$moc3State.textureUrl}-${uvTriangles.length}-${$moc3State.textureImage ? 1 : 0}`;
   $: viewStateTrigger = `${previewTrigger}-${zoom.toFixed(3)}-${panX.toFixed(1)}-${panY.toFixed(1)}`;
   $: if (canvasEl) {
@@ -274,7 +345,7 @@
           </button>
         </div>
       </div>
-      <div class="view-hint">Drag canvas to pan and wheel to zoom around the cursor.</div>
+      <div class="view-hint">Middle-click drag to pan, wheel to zoom, left-click to select.</div>
     </div>
 
     <div class="uv-canvas-wrapper">
@@ -288,7 +359,7 @@
         onpointermove={handlePointerMove}
         onpointerup={handlePointerUp}
         onpointerleave={handlePointerUp}
-        class:grabbing={isPanning}
+        class:grabbing={isWheelDrag}
       ></canvas>
       <div class="legend">
         {#if uvBounds}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { TextInput } from 'lite2d-editor-ui';
   import { XCircle } from '@lucide/svelte';
-  import { moc3Actions, moc3State, FACE_PART_TAGS } from '../moc3/store';
+  import { moc3Actions, moc3State, BODY_PART_TAGS } from '../moc3/store';
 
   let filter = '';
 
@@ -10,7 +10,7 @@
     : [];
 
   const hasTag = (meshId: string, tag: string) => {
-    const tags = $moc3State.faceParts[meshId] ?? [];
+    const tags = $moc3State.bodyParts[meshId] ?? [];
     return tags.includes(tag);
   };
 </script>
@@ -19,7 +19,7 @@
   {#if $moc3State.model}
     <div class="header">
       <div>
-        <div class="label">Parts Index</div>
+        <div class="label">Body/Seam Parts Mapping</div>
         <div class="value">{$moc3State.model.drawables.length} drawables</div>
       </div>
       <TextInput placeholder="Filter drawables" value={filter} on:input={(event) => (filter = (event.target as HTMLInputElement).value)} />
@@ -36,19 +36,19 @@
           <div class="row">
             <div class="id" title={drawable.id}>{drawable.id}</div>
             <div class="tags">
-              {#each FACE_PART_TAGS as tag}
+              {#each BODY_PART_TAGS as tag}
                 <label class:active={hasTag(drawable.id, tag)}>
                   <input
                     type="checkbox"
                     checked={hasTag(drawable.id, tag)}
-                    on:change={() => moc3Actions.toggleFacePart(drawable.id, tag)}
+                    on:change={() => moc3Actions.toggleBodyPart(drawable.id, tag)}
                   />
                   <span>{tag}</span>
                 </label>
               {/each}
             </div>
             <div class="actions">
-              <button type="button" class="ui-btn ghost" title="Clear tags" on:click={() => moc3Actions.clearFacePartsForMesh(drawable.id)}>
+              <button type="button" class="ui-btn ghost" title="Clear tags" on:click={() => moc3Actions.clearBodyPartsForMesh(drawable.id)}>
                 <XCircle size={16} />
                 Clear
               </button>
@@ -58,7 +58,7 @@
       </div>
     </div>
   {:else}
-    <div class="placeholder">No moc3 file loaded. Load a file to map face parts.</div>
+    <div class="placeholder">No moc3 file loaded. Load a file to map body parts.</div>
   {/if}
 </div>
 

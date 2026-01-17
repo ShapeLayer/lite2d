@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Unified parts mapping for Live2D Moc3 drawables",
+  "type": "object",
+  "properties": {
+    "model": {
+      "type": "string",
+      "description": "Source .moc3.json filename or path (optional)"
+    },
+    "face_parts": {
+      "type": "object",
+      "description": "Mapping of parts tags to drawable IDs (face/body/seam combined)",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  },
+  "required": [
+    "face_parts"
+  ]
+}

@@ -17,7 +17,7 @@ if (EXISTS "${ONNXRUNTIME_DIR}/include/onnxruntime_cxx_api.h")
   message(STATUS "Found ONNX Runtime at ${ONNXRUNTIME_DIR}")
 endif()
 
-set(HEADERS
+set(LIB_HEADERS
   src/debug.h
   src/deformer.h
   src/easing.h
@@ -29,24 +29,26 @@ set(HEADERS
   src/texture.h
   src/glmesh.h
   src/shader.h
+  src/model_loader.h
   external/stb/stb_image.h
   external/commons/json.hpp
 )
-set(SOURCES
+set(LIB_SOURCES
   src/anim_clip.cc
   src/glmesh.cc
   src/engine.cc
   src/shader.cc
   src/texture.cc
+  src/model_loader.cc
   external/glad/src/glad.c
-  src/main.cc
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_library(lite2d STATIC ${LIB_HEADERS} ${LIB_SOURCES})
+add_executable(lite2d_viewer src/main.cc)
 
 set_source_files_properties(external/glad/src/glad.c PROPERTIES LANGUAGE C)
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(lite2d PUBLIC
   ${OpenCV_INCLUDE_DIRS}
   ${GLFW_INCLUDE_DIRS}
   ${OPENGL_INCLUDE_DIR}
@@ -56,27 +58,31 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 if(APPLE)
-  target_include_directories(lite2d PRIVATE /opt/homebrew/include)
-  target_link_directories(lite2d PRIVATE /opt/homebrew/lib)
+  target_include_directories(lite2d PUBLIC /opt/homebrew/include)
+  target_link_directories(lite2d PUBLIC /opt/homebrew/lib)
 endif()
 
-target_link_directories(lite2d PRIVATE ${GLFW_LIBRARY_DIRS})
+target_link_directories(lite2d PUBLIC ${GLFW_LIBRARY_DIRS})
 
-target_link_libraries(lite2d PRIVATE
+target_link_libraries(lite2d PUBLIC
   glm::glm
   ${OpenCV_LIBS}
-  ${GLFW_LIBRARIES}
   ${OPENGL_gl_LIBRARY}
 )
 
+target_link_libraries(lite2d_viewer PRIVATE
+  lite2d
+  ${GLFW_LIBRARIES}
+)
+
 if (USE_ONNX)
-  target_include_directories(lite2d PRIVATE ${ONNXRUNTIME_DIR}/include)
-  target_link_directories(lite2d PRIVATE ${ONNXRUNTIME_DIR}/lib)
-  target_link_libraries(lite2d PRIVATE onnxruntime)
+  target_include_directories(lite2d PUBLIC ${ONNXRUNTIME_DIR}/include)
+  target_link_directories(lite2d PUBLIC ${ONNXRUNTIME_DIR}/lib)
+  target_link_libraries(lite2d PUBLIC onnxruntime)
 endif()
 
 if (APPLE)
-  target_link_libraries(lite2d PRIVATE 
+  target_link_libraries(lite2d PUBLIC 
     "-framework OpenGL"
     "-framework Cocoa" 
     "-framework IOKit" 

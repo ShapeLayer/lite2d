@@ -10,6 +10,7 @@ export type Moc3State = {
   errorMessage: string;
   statusMessage: string;
   selectedMeshId: string;
+  selectedMeshIds: string[];
   renderOrder: string[];
   hiddenDrawables: Record<string, boolean>;
   faceParts: Record<string, string[]>;
@@ -25,6 +26,7 @@ const initialState: Moc3State = {
   errorMessage: '',
   statusMessage: 'Drop a .moc3.json file or load the bundled sample.',
   selectedMeshId: '',
+  selectedMeshIds: [],
   renderOrder: [],
   hiddenDrawables: {},
   faceParts: {},
@@ -56,7 +58,23 @@ const FACE_PART_TAGS = [
   'nose',
   'cheek_left',
   'cheek_right',
-  'face'
+  'face',
+  'face_motion',
+  'head',
+  'neck',
+  'neck_seam',
+  'jaw_seam',
+  'shoulder_left',
+  'shoulder_right',
+  'torso',
+  'chest',
+  'body',
+  'hair',
+  'hair_front',
+  'hair_back',
+  'hair_side',
+  'ear_left',
+  'ear_right'
 ];
 
 const applyRenderSettings = (nextModel: Moc3Model) => {
@@ -131,6 +149,7 @@ const applyFacePartsSettings = (nextModel: Moc3Model) => {
   return faceParts;
 };
 
+
 const persistFacePartsSettings = () => {
   const { model, faceParts } = get(moc3State);
   if (!model) return;
@@ -142,6 +161,7 @@ const persistFacePartsSettings = () => {
     console.warn('Failed to persist face parts settings', error);
   }
 };
+
 
 const setState = (patch: Partial<Moc3State>) => {
   moc3State.update((state) => ({ ...state, ...patch }));
@@ -198,6 +218,7 @@ const loadFromText = (text: string, name: string, sourceUrl?: string) => {
       hiddenDrawables: hidden,
       faceParts,
       selectedMeshId: model.drawables[0]?.id ?? '',
+      selectedMeshIds: model.drawables[0]?.id ? [model.drawables[0].id] : [],
       errorMessage: '',
       statusMessage: `${name} loaded (${model.drawables.length} drawables)`,
       textureName: '',
@@ -213,6 +234,7 @@ const loadFromText = (text: string, name: string, sourceUrl?: string) => {
       errorMessage: 'Failed to parse moc3 JSON. Check file format.',
       model: null,
       selectedMeshId: '',
+      selectedMeshIds: [],
       textureStatus: 'No texture loaded',
       lastModelUrl: null
     });
@@ -250,7 +272,12 @@ const setTextureFromUrl = (url: string, name?: string) => {
 };
 
 const selectMesh = (id: string) => {
-  setState({ selectedMeshId: id });
+  setState({ selectedMeshId: id, selectedMeshIds: id ? [id] : [] });
+};
+
+const selectMeshes = (ids: string[]) => {
+  const unique = Array.from(new Set(ids)).filter(Boolean);
+  setState({ selectedMeshId: unique[0] ?? '', selectedMeshIds: unique });
 };
 
 const toggleVisibility = (id: string) => {
@@ -338,6 +365,7 @@ const clearFacePartsForMesh = (meshId: string) => {
   persistFacePartsSettings();
 };
 
+
 const exportFaceParts = () => {
   const { model, faceParts } = get(moc3State);
   if (!model) return false;
@@ -357,32 +385,43 @@ const exportFaceParts = () => {
   const baseName = model.name.replace(/\.[^/.]+$/, '');
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `${baseName || 'moc3'}.face-parts.json`;
+  anchor.download = `${baseName || 'moc3'}.parts.json`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 0);
   return true;
 };
 
-const applyFacePartsPayload = (payload: { model?: string; face_parts?: Record<string, string[]> }) => {
+
+const applyFacePartsPayload = (payload: {
+  model?: string;
+  face_parts?: Record<string, string[]>;
+  body_parts?: Record<string, string[]>;
+  seam_parts?: Record<string, string[]>;
+}) => {
   const { model } = get(moc3State);
   if (!model) return false;
   const drawableIds = new Set(model.drawables.map((drawable) => drawable.id));
-  const next: Record<string, string[]> = {};
-  if (payload.face_parts && typeof payload.face_parts === 'object') {
-    Object.entries(payload.face_parts).forEach(([tag, ids]) => {
+  const nextFace: Record<string, string[]> = {};
+  const applyMap = (parts?: Record<string, string[]>) => {
+    if (!parts || typeof parts !== 'object') return;
+    Object.entries(parts).forEach(([tag, ids]) => {
       if (!FACE_PART_TAGS.includes(tag) || !Array.isArray(ids)) return;
       ids.forEach((meshId) => {
         if (!drawableIds.has(meshId)) return;
-        const current = next[meshId] ?? [];
+        const current = nextFace[meshId] ?? [];
         if (!current.includes(tag)) current.push(tag);
-        next[meshId] = current;
+        nextFace[meshId] = current;
       });
     });
-  }
-  setState({ faceParts: next });
+  };
+  applyMap(payload.face_parts);
+  applyMap(payload.body_parts);
+  applyMap(payload.seam_parts);
+  setState({ faceParts: nextFace });
   persistFacePartsSettings();
   return true;
 };
+
 
 const importFacePartsFromText = (text: string) => {
   try {
@@ -394,6 +433,7 @@ const importFacePartsFromText = (text: string) => {
   }
 };
 
+
 const importFacePartsFromFile = async (file: File) => {
   if (!file) return false;
   try {
@@ -404,6 +444,7 @@ const importFacePartsFromFile = async (file: File) => {
     return false;
   }
 };
+
 
 const moveDrawable = (id: string, delta: number) => {
   const { model, renderOrder } = get(moc3State);
@@ -505,6 +546,7 @@ export const moc3Actions = {
   setTextureFromUrl,
   tryLoadModelTexture,
   selectMesh,
+  selectMeshes,
   toggleVisibility,
   showAllDrawables,
   resetRenderSettings,

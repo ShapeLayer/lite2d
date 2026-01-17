@@ -59,7 +59,7 @@
   {#if $moc3State.model}
     <div class="summary">
       <div>
-        <div class="label">Face Part Validator</div>
+        <div class="label">Parts Index</div>
         <div class="value">{$moc3State.model.drawables.length} drawables</div>
       </div>
       <div class="summary-status">
@@ -123,7 +123,6 @@
 
                   <div class="add-row">
                     <TextInput
-                      class="search-input"
                       label="Search"
                       placeholder="Type to filter"
                       value={addFilters[tag] ?? ''}
@@ -157,7 +156,7 @@
       {/each}
     </div>
   {:else}
-    <div class="placeholder">No moc3 file loaded. Load a file to validate face parts.</div>
+    <div class="placeholder">No moc3 file loaded. Load a file to index parts.</div>
   {/if}
 </div>
 
@@ -287,19 +286,11 @@
     word-break: break-all;
   }
 
-  .select select {
-    padding: 4px 6px;
-  }
-
   .add-row {
     display: grid;
     grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) auto;
     gap: 8px;
     align-items: end;
-  }
-
-  .search-input :global(input) {
-    padding: 4px 6px;
   }
 
   .ui-btn {

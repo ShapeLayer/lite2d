@@ -50,6 +50,10 @@ struct Model
   std::unordered_map<std::string, ArtMesh> meshes;
   // Face part mapping: mesh id -> set of face part tags
   std::unordered_map<std::string, std::unordered_set<std::string>> mesh_face_parts;
+  // Body part mapping: mesh id -> set of body part tags
+  std::unordered_map<std::string, std::unordered_set<std::string>> mesh_body_parts;
+  // Seam mapping: mesh id -> set of seam tags (e.g., neck_seam)
+  std::unordered_map<std::string, std::unordered_set<std::string>> mesh_seam_parts;
   std::vector<AnimationClip> animations;
   void resetParams()
   {
